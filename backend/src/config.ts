@@ -14,6 +14,7 @@ export const config = {
   env: process.env.NODE_ENV || "development",
   port: parseInt(process.env.PORT || "3000", 10),
   databaseUrl: readEnv("DATABASE_URL"),
+  databaseSsl: process.env.DATABASE_SSL === "true" || process.env.NODE_ENV === "production",
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   mqtt: {
     url: readEnv("MQTT_URL", "mqtt://localhost:1883"),

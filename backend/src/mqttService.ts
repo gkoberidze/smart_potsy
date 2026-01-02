@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { Logger } from "pino";
 import { z } from "zod";
 import { config } from "./config";
-import { createDeviceForUser } from "./db";
+import { createDeviceForUser, verifyDeviceExists } from "./db";
 
 const telemetrySchema = z.object({
   deviceId: z.string().regex(/^ESP32_\d{3}$/),
@@ -57,12 +57,14 @@ const handleTelemetry = async (pool: Pool, logger: Logger, deviceId: string, pay
     return;
   }
 
-  const recordedAt = new Date();
+  const recordedAt = new Date().toISOString();
 
   try {
-    try {
-      await createDeviceForUser(deviceId, 1);
-    } catch {}
+    // Verify device exists or create it for system user
+    const exists = await verifyDeviceExists(deviceId);
+    if (!exists) {
+      await createDeviceForUser(deviceId, 1); // System user
+    }
 
     await pool.query(
       `
@@ -103,11 +105,13 @@ const handleStatus = async (pool: Pool, logger: Logger, deviceId: string, payloa
     return;
   }
 
-  const reportedAt = new Date();
+  const reportedAt = new Date().toISOString();
   try {
-    try {
-      await createDeviceForUser(deviceId, 1);
-    } catch {}
+    // Verify device exists or create it for system user
+    const exists = await verifyDeviceExists(deviceId);
+    if (!exists) {
+      await createDeviceForUser(deviceId, 1); // System user
+    }
 
     await pool.query(
       `

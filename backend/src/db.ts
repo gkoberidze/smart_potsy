@@ -7,7 +7,7 @@ export const pool = new Pool({
   connectionString: config.databaseUrl,
   max: 20,
   idleTimeoutMillis: 30_000,
-  ssl: false,
+  ssl: config.databaseSsl ? { rejectUnauthorized: false } : false,
 });
 
 pool.on("error", (err: Error) => {
@@ -116,3 +116,10 @@ export const verifyDeviceOwnership = async (
   return result.rows.length > 0;
 };
 
+export const verifyDeviceExists = async (deviceId: string): Promise<boolean> => {
+  const result = await pool.query(
+    "SELECT 1 FROM devices WHERE device_id = $1",
+    [deviceId]
+  );
+  return result.rows.length > 0;
+};

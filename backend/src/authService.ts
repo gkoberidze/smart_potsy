@@ -31,8 +31,8 @@ export const verifyPassword = async (
 };
 
 export const generateResetToken = (): string => {
-  // Generate 6-digit random code
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // Generate 32-character cryptographically secure token
+  return crypto.randomBytes(32).toString("hex");
 };
 
 export const verifyGoogleToken = async (accessToken: string): Promise<{ email: string; id: string } | null> => {

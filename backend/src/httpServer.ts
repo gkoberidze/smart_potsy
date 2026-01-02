@@ -29,6 +29,17 @@ import {
 import { config } from "./config";
 import { sendPasswordResetEmail } from "./emailService";
 import { AuthResponse } from "./types";
+import { 
+  ApiError, 
+  ApiResponse, 
+  successResponse, 
+  errorHandler 
+} from "./apiResponse";
+import { 
+  authLimiter, 
+  resetLimiter, 
+  generalLimiter 
+} from "./rateLimiters";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -50,7 +61,7 @@ const QueryLimitSchema = z.object({
 });
 
 const DeviceIdSchema = z.object({
-  deviceId: z.string().min(1).max(100),
+  deviceId: z.string().regex(/^ESP32_\d{3}$/, "Invalid device ID format"),
 });
 
 const TelemetryQuerySchema = z.object({
@@ -114,6 +125,7 @@ const authMiddleware = async (
 export const createHttpServer = (pool: Pool, logger: Logger) => {
   const app = express();
 
+  // Security middleware
   app.use(helmet());
   app.use(
     cors({
@@ -127,6 +139,13 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
       autoLogging: true,
     })
   );
+
+  // Rate limiting
+  app.use("/api/auth/login", authLimiter);
+  app.use("/api/auth/register", authLimiter);
+  app.use("/api/auth/forgot-password", resetLimiter);
+  app.use("/api/auth/reset-password", resetLimiter);
+  app.use(generalLimiter);
 
   const validateBody = (schema: z.ZodSchema) => (
     req: express.Request,
@@ -161,45 +180,51 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
   };
 
   app.get("/", (_req, res) => {
-    res.json({
-      name: "Greenhouse IoT API",
-      version: "0.1.0",
-      endpoints: {
-        health: "GET /health",
-        auth: {
-          register: "POST /api/auth/register",
-          login: "POST /api/auth/login",
-          oauth: "POST /api/auth/oauth",
-          forgotPassword: "POST /api/auth/forgot-password",
-          resetPassword: "POST /api/auth/reset-password",
-          me: "GET /api/auth/me",
+    res.json(
+      successResponse({
+        name: "Greenhouse IoT API",
+        version: "0.1.0",
+        endpoints: {
+          health: "GET /health",
+          auth: {
+            register: "POST /api/auth/register",
+            login: "POST /api/auth/login",
+            oauth: "POST /api/auth/oauth",
+            forgotPassword: "POST /api/auth/forgot-password",
+            resetPassword: "POST /api/auth/reset-password",
+            me: "GET /api/auth/me",
+          },
+          devices: {
+            list: "GET /api/devices",
+            register: "POST /api/devices",
+            remove: "DELETE /api/devices/:deviceId",
+            telemetry: "GET /api/devices/:deviceId/telemetry",
+            status: "GET /api/devices/:deviceId/status",
+          },
         },
-        devices: {
-          list: "GET /api/devices",
-          register: "POST /api/devices",
-          remove: "DELETE /api/devices/:deviceId",
-          telemetry: "GET /api/devices/:deviceId/telemetry",
-          status: "GET /api/devices/:deviceId/status",
-        },
-      },
-    });
+      })
+    );
   });
 
   app.get("/health", async (_req, res) => {
     try {
       await pool.query("SELECT 1");
 
-      res.status(200).json({
-        status: "healthy",
-        database: "connected",
-        timestamp: new Date().toISOString(),
-      });
+      res.status(200).json(
+        successResponse({
+          status: "healthy",
+          database: "connected",
+        })
+      );
     } catch (err) {
       logger.error({ err }, "Health check failed");
       res.status(503).json({
-        status: "unhealthy",
-        database: "disconnected",
-        error: err instanceof Error ? err.message : "Unknown error",
+        success: false,
+        error: {
+          code: "DATABASE_ERROR",
+          message: "Database connection failed",
+          details: err instanceof Error ? err.message : "Unknown error",
+        },
         timestamp: new Date().toISOString(),
       });
     }
@@ -659,11 +684,8 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     }
   );
 
-  // Error handler
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    logger.error({ err }, "Unhandled error");
-    res.status(500).json({ error: "Internal server error" });
-  });
+  // Error handler (must be last)
+  app.use(errorHandler);
 
   return app;
 };
