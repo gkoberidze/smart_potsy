@@ -40,6 +40,10 @@ import {
   resetLimiter, 
   generalLimiter 
 } from "./rateLimiters";
+import {
+  assertDeviceAccess,
+  validateLimit,
+} from "./deviceHelpers";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -100,6 +104,16 @@ const toDeviceResponse = (row: Record<string, any>) => ({
   statusReportedAt: row.status_reported_at as string | null,
 });
 
+const sendAuthResponse = (res: express.Response, user: any, statusCode = 200) => {
+  const token = generateToken(user.id, user.email);
+  res.status(statusCode).json(
+    successResponse({
+      token,
+      user: { id: user.id, email: user.email },
+    })
+  );
+};
+
 const authMiddleware = async (
   req: express.Request,
   res: express.Response,
@@ -108,8 +122,7 @@ const authMiddleware = async (
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
-      res.status(401).json({ error: "Missing or invalid authorization header" });
-      return;
+      throw new ApiError(401, "MISSING_AUTH_HEADER", "Missing or invalid authorization header");
     }
 
     const token = authHeader.slice(7);
@@ -118,7 +131,7 @@ const authMiddleware = async (
     (req as any).userEmail = payload.email;
     next();
   } catch (err) {
-    res.status(401).json({ error: "Invalid token" });
+    next(new ApiError(401, "INVALID_TOKEN", "Invalid token"));
   }
 };
 
@@ -236,28 +249,15 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     async (req, res, next) => {
       try {
         const { email, password } = req.body;
-
         const existingUser = await getUserByEmail(email);
         if (existingUser) {
-          res.status(409).json({ error: "User already exists" });
-          return;
+          throw new ApiError(409, "USER_EXISTS", "User already exists");
         }
 
         const passwordHash = await hashPassword(password);
         const user = await createUser(email, passwordHash);
-
-        const token = generateToken(user.id, user.email);
-        const response: AuthResponse = {
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-          },
-        };
-
-        res.status(201).json(response);
+        sendAuthResponse(res, user, 201);
       } catch (err) {
-        logger.error({ err }, "Registration failed");
         next(err);
       }
     }
@@ -269,36 +269,18 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     async (req, res, next) => {
       try {
         const { email, password } = req.body;
-
         const user = await getUserByEmail(email);
-        if (!user) {
-          res.status(401).json({ error: "Invalid email or password" });
-          return;
-        }
-
-        if (!user.password_hash) {
-          res.status(401).json({ error: "Please login with Google or Facebook" });
-          return;
+        if (!user || !user.password_hash) {
+          throw new ApiError(401, "AUTH_FAILED", "Invalid email or password");
         }
 
         const passwordValid = await verifyPassword(password, user.password_hash);
         if (!passwordValid) {
-          res.status(401).json({ error: "Invalid email or password" });
-          return;
+          throw new ApiError(401, "AUTH_FAILED", "Invalid email or password");
         }
 
-        const token = generateToken(user.id, user.email);
-        const response: AuthResponse = {
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-          },
-        };
-
-        res.json(response);
+        sendAuthResponse(res, user);
       } catch (err) {
-        logger.error({ err }, "Login failed");
         next(err);
       }
     }
@@ -316,40 +298,21 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     async (req, res, next) => {
       try {
         const { provider, accessToken } = req.body;
-
-        let oauthData: { email: string; id: string } | null = null;
-
-        if (provider === "google") {
-          oauthData = await verifyGoogleToken(accessToken);
-        } else if (provider === "facebook") {
-          oauthData = await verifyFacebookToken(accessToken);
-        }
-
+        const verifier = provider === "google" ? verifyGoogleToken : verifyFacebookToken;
+        const oauthData = await verifier(accessToken);
         if (!oauthData) {
-          res.status(401).json({ error: "Invalid OAuth token" });
-          return;
+          throw new ApiError(401, "INVALID_OAUTH_TOKEN", "Invalid OAuth token");
         }
 
         let user = await getUserByEmail(oauthData.email);
-
         if (!user) {
           user = await createOAuthUser(oauthData.email, provider, oauthData.id);
         } else {
           await updateUserOAuth(oauthData.email, provider, oauthData.id);
         }
 
-        const token = generateToken(user.id, user.email);
-        const response: AuthResponse = {
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-          },
-        };
-
-        res.json(response);
+        sendAuthResponse(res, user);
       } catch (err) {
-        logger.error({ err }, "OAuth login failed");
         next(err);
       }
     }
@@ -546,24 +509,13 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     authMiddleware,
     validateQuery(DeviceIdSchema),
     async (req, res, next) => {
-      const userId = (req as any).userId;
-      const { deviceId } = req.params as { deviceId: string };
-
       try {
-        const hasAccess = await verifyDeviceOwnership(deviceId, userId);
-        if (!hasAccess) {
-          res.status(403).json({ error: "Access denied" });
-          return;
-        }
-
-        await pool.query(
-          "UPDATE devices SET user_id = 1 WHERE device_id = $1",
-          [deviceId]
-        );
-
-        res.json({ message: "Device removed from your account" });
+        const userId = (req as any).userId;
+        const { deviceId } = req.params as { deviceId: string };
+        await assertDeviceAccess(pool, deviceId, userId);
+        await pool.query("UPDATE devices SET user_id = 1 WHERE device_id = $1", [deviceId]);
+        res.json(successResponse({ message: "Device removed from your account" }));
       } catch (err) {
-        logger.error({ err, deviceId, userId }, "Failed to remove device");
         next(err);
       }
     }
@@ -574,61 +526,30 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     authMiddleware,
     validateQuery(DeviceIdSchema.merge(TelemetryQuerySchema)),
     async (req, res, next) => {
-      const userId = (req as any).userId;
-      const { deviceId } = req.params as { deviceId: string };
-      const limit = Math.min(
-        Math.max(parseInt((req.query.limit as string) ?? "100", 10) || 100, 1),
-        1000
-      );
-
       try {
-        const hasAccess = await verifyDeviceOwnership(deviceId, userId);
-        if (!hasAccess) {
-          res.status(403).json({ error: "Access denied" });
-          return;
-        }
+        const userId = (req as any).userId;
+        const { deviceId } = req.params as { deviceId: string };
+        const limit = validateLimit(req.query.limit as string);
+
+        await assertDeviceAccess(pool, deviceId, userId);
 
         const sinceParam = req.query.since as string | undefined;
-        let sinceDate: Date | undefined;
+        let query = `SELECT * FROM telemetry WHERE device_id = $1`;
+        const params: any[] = [deviceId];
+
         if (sinceParam) {
           const parsed = new Date(sinceParam);
           if (!Number.isNaN(parsed.getTime())) {
-            sinceDate = parsed;
+            query += ` AND recorded_at > $2`;
+            params.push(sinceParam);
           }
         }
 
-        const { rows } = await pool.query(
-          `
-          SELECT 
-            device_id,
-            air_temperature,
-            air_humidity,
-            soil_temperature,
-            soil_moisture,
-            light_level,
-            recorded_at
-          FROM telemetry
-          WHERE device_id = $1
-          ${sinceDate ? "AND recorded_at >= $3" : ""}
-          ORDER BY recorded_at DESC
-          LIMIT $2;
-          `,
-          sinceDate ? [deviceId, limit, sinceDate] : [deviceId, limit]
-        );
-
-        res.json({ telemetry: rows.map(toTelemetryResponse) });
+        query += ` ORDER BY recorded_at DESC LIMIT ${Math.min(limit, 1000)}`;
+        const result = await pool.query(query, params);
+        const telemetry = result.rows.map(toTelemetryResponse);
+        res.json(successResponse(telemetry));
       } catch (err) {
-        logger.error(
-          {
-            err,
-            deviceId,
-            userId,
-            limit,
-            endpoint: "/api/devices/:deviceId/telemetry",
-            timestamp: new Date().toISOString(),
-          },
-          "Failed to fetch telemetry"
-        );
         next(err);
       }
     }
@@ -639,46 +560,31 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     authMiddleware,
     validateQuery(DeviceIdSchema),
     async (req, res, next) => {
-      const userId = (req as any).userId;
       try {
+        const userId = (req as any).userId;
         const { deviceId } = req.params as { deviceId: string };
 
-        const hasAccess = await verifyDeviceOwnership(deviceId, userId);
-        if (!hasAccess) {
-          res.status(403).json({ error: "Access denied" });
-          return;
-        }
+        await assertDeviceAccess(pool, deviceId, userId);
 
-        const { rows } = await pool.query(
-          `SELECT device_id, status, reported_at FROM device_status WHERE device_id = $1;`,
+        const result = await pool.query(
+          "SELECT device_id, status, reported_at FROM device_status WHERE device_id = $1",
           [deviceId]
         );
 
-        if (rows.length === 0) {
-          logger.info({ deviceId }, "Device not found");
-          res.status(404).json({ error: "Device not found" });
-          return;
-        }
+        const status = result.rows[0] || {
+          device_id: deviceId,
+          status: "unknown",
+          reported_at: null,
+        };
 
-        const row = rows[0];
-        res.json({
-          deviceId: row.device_id,
-          status: row.status,
-          reportedAt: row.reported_at,
-        });
-      } catch (err) {
-        const deviceId = (req.params as { deviceId?: string }).deviceId || "unknown";
-        const userId = (req as any).userId;
-        logger.error(
-          {
-            err,
-            deviceId,
-            userId,
-            endpoint: "/api/devices/:deviceId/status",
-            timestamp: new Date().toISOString(),
-          },
-          "Failed to fetch device status"
+        res.json(
+          successResponse({
+            deviceId: status.device_id,
+            status: status.status,
+            reportedAt: status.reported_at,
+          })
         );
+      } catch (err) {
         next(err);
       }
     }
