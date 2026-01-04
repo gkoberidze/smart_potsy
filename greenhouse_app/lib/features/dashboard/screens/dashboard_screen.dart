@@ -9,6 +9,7 @@ import '../../devices/screens/device_detail_screen.dart';
 import '../../devices/screens/qr_scanner_screen.dart';
 import '../../settings/screens/terms_and_conditions_screen.dart';
 import '../../settings/screens/privacy_policy_screen.dart';
+import 'recommendations_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -198,7 +199,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: 'რეკომენდაციები',
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Navigate to recommendations screen
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const RecommendationsScreen(),
+                        ),
+                      );
                     },
                   ),
                   const Divider(height: 16),
