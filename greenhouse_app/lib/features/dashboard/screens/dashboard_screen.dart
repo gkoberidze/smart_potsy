@@ -7,6 +7,8 @@ import '../../../core/models/device.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../devices/screens/device_detail_screen.dart';
 import '../../devices/screens/qr_scanner_screen.dart';
+import '../../settings/screens/terms_and_conditions_screen.dart';
+import '../../settings/screens/privacy_policy_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -109,7 +111,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: SafeArea(
         child: Column(
           children: [
-            // Drawer Header
+            // Drawer Header with user info
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -123,41 +125,107 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Colors.white24,
-                    child: Icon(Icons.person, size: 36, color: Colors.white),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'სათბური',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    authService.user?.email ?? '',
-                    style: const TextStyle(fontSize: 14, color: Colors.white70),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: Colors.white24,
+                        child: Text(
+                          (authService.user?.email?.substring(0, 1) ?? 'U')
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              authService.user?.email?.split('@')[0] ??
+                                  'მომხმარებელი',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              authService.user?.email ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // Menu Items - Tell me what to add here
+            // Menu Items
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
                   _buildDrawerItem(
-                    icon: Icons.devices,
-                    title: 'მოწყობილობები',
-                    isSelected: true,
+                    icon: Icons.home,
+                    title: 'მთავარი',
                     onTap: () => Navigator.pop(context),
                   ),
-                  // TODO: Add more menu items here
+                  _buildDrawerItem(
+                    icon: Icons.devices,
+                    title: 'ჩემი მოწყობილობები',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Already on dashboard with devices
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.lightbulb,
+                    title: 'რეკომენდაციები',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // TODO: Navigate to recommendations screen
+                    },
+                  ),
+                  const Divider(height: 16),
+                  _buildDrawerItem(
+                    icon: Icons.description,
+                    title: 'Terms & Conditions',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TermsAndConditionsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.privacy_tip,
+                    title: 'Privacy Policy',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -166,7 +234,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Divider(height: 1),
             _buildDrawerItem(
               icon: Icons.logout,
-              title: 'გასვლა',
+              title: 'გამოსვლა',
               color: Colors.red,
               onTap: _logout,
             ),
