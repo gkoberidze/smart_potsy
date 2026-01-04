@@ -52,24 +52,26 @@ class TelemetryChart extends StatelessWidget {
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: range > 0 ? range / 4 : 1,
-                    getDrawingHorizontalLine: (value) =>
-                        FlLine(color: AppColors.border, strokeWidth: 1),
+                    getDrawingHorizontalLine:
+                        (value) =>
+                            FlLine(color: AppColors.border, strokeWidth: 1),
                   ),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 40,
-                        getTitlesWidget: (value, meta) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Text(
-                            value.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppColors.textSecondary,
+                        getTitlesWidget:
+                            (value, meta) => Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                value.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
                     ),
                     bottomTitles: AxisTitles(
@@ -109,7 +111,7 @@ class TelemetryChart extends StatelessWidget {
                           final index = spot.x.toInt();
                           final data = telemetry[index];
                           return LineTooltipItem(
-                            '${spot.y.toStringAsFixed(1)}\n${_formatTime(data.recordedAt)}',
+                            '${spot.y.toStringAsFixed(1)}\n${_formatTime(data.recordedAt ?? DateTime.now())}',
                             const TextStyle(color: Colors.white, fontSize: 12),
                           );
                         }).toList();

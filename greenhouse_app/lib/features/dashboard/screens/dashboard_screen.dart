@@ -132,7 +132,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         radius: 32,
                         backgroundColor: Colors.white24,
                         child: Text(
-                          (authService.user?.email?.substring(0, 1) ?? 'U')
+                          (authService.user?.email != null &&
+                                      authService.user!.email.isNotEmpty
+                                  ? authService.user!.email.substring(0, 1)
+                                  : 'U')
                               .toUpperCase(),
                           style: const TextStyle(
                             fontSize: 32,
@@ -147,8 +150,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              authService.user?.email?.split('@')[0] ??
-                                  'მომხმარებელი',
+                              authService.user?.email != null &&
+                                      authService.user!.email.isNotEmpty
+                                  ? authService.user!.email.split('@')[0]
+                                  : 'მომხმარებელი',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -430,8 +435,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDeviceCard(Device device) {
-    // TODO: Add actual online status check when telemetry is available
-    const isOnline = false;
+    // Check online status - device is online if last seen within 5 minutes
+    final isOnline =
+        device.lastSeen != null &&
+        DateTime.now().difference(device.lastSeen!).inMinutes < 5;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

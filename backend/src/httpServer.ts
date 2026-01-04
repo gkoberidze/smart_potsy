@@ -619,10 +619,10 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
           throw new ApiError("FCM token is required", 400);
         }
 
-        await pool.query(
-          "UPDATE users SET fcm_token = $1 WHERE id = $2",
-          [fcmToken, userId]
-        );
+        await pool.query({
+          text: "UPDATE users SET fcm_token = $1 WHERE id = $2",
+          values: [fcmToken, userId],
+        });
 
         res.json(successResponse({ message: "Token registered successfully" }));
       } catch (err) {
@@ -639,18 +639,18 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         const userId = (req as any).userId;
         const limit = parseInt(req.query.limit as string) || 20;
 
-        const result = await pool.query(
-          `SELECT id, title, body, data, is_read, created_at 
+        const result = await pool.query({
+          text: `SELECT id, title, body, data, is_read, created_at 
            FROM notifications 
            WHERE user_id = $1 
            ORDER BY created_at DESC 
            LIMIT $2`,
-          [userId, limit]
-        );
+          values: [userId, limit],
+        });
 
         res.json(
           successResponse(
-            result.rows.map((row) => ({
+            result.rows.map((row: any) => ({
               id: row.id,
               title: row.title,
               body: row.body,
@@ -674,10 +674,10 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         const userId = (req as any).userId;
         const { id } = req.params;
 
-        const result = await pool.query(
-          "UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2 RETURNING id",
-          [id, userId]
-        );
+        const result = await pool.query({
+          text: "UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2 RETURNING id",
+          values: [id, userId],
+        });
 
         if (result.rows.length === 0) {
           throw new ApiError("Notification not found", 404);

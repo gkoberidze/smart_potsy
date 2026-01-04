@@ -28,7 +28,6 @@ class NotificationService {
         badge: true,
         sound: true,
         provisional: false,
-        carryForwardNotificationSettings: true,
       );
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/services/device_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/models/device.dart';
 

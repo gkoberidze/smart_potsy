@@ -2,7 +2,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY backend/package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY backend/tsconfig.json ./tsconfig.json
 COPY backend/src ./src
@@ -14,7 +14,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 COPY --from=build /app/dist ./dist
 
