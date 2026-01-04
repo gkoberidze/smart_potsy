@@ -606,6 +606,146 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     }
   );
 
+  // Notification endpoints
+  app.post(
+    "/api/notifications/register-token",
+    authMiddleware,
+    async (req, res, next) => {
+      try {
+        const userId = (req as any).userId;
+        const { fcmToken } = req.body;
+
+        if (!fcmToken) {
+          throw new ApiError("FCM token is required", 400);
+        }
+
+        await pool.query(
+          "UPDATE users SET fcm_token = $1 WHERE id = $2",
+          [fcmToken, userId]
+        );
+
+        res.json(successResponse({ message: "Token registered successfully" }));
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  app.get(
+    "/api/notifications",
+    authMiddleware,
+    async (req, res, next) => {
+      try {
+        const userId = (req as any).userId;
+        const limit = parseInt(req.query.limit as string) || 20;
+
+        const result = await pool.query(
+          `SELECT id, title, body, data, is_read, created_at 
+           FROM notifications 
+           WHERE user_id = $1 
+           ORDER BY created_at DESC 
+           LIMIT $2`,
+          [userId, limit]
+        );
+
+        res.json(
+          successResponse(
+            result.rows.map((row) => ({
+              id: row.id,
+              title: row.title,
+              body: row.body,
+              data: row.data,
+              isRead: row.is_read,
+              createdAt: row.created_at,
+            }))
+          )
+        );
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  app.post(
+    "/api/notifications/:id/read",
+    authMiddleware,
+    async (req, res, next) => {
+      try {
+        const userId = (req as any).userId;
+        const { id } = req.params;
+
+        const result = await pool.query(
+          "UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2 RETURNING id",
+          [id, userId]
+        );
+
+        if (result.rows.length === 0) {
+          throw new ApiError("Notification not found", 404);
+        }
+
+        res.json(successResponse({ message: "Notification marked as read" }));
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  // Alert rules endpoints
+  app.get(
+    "/api/devices/:deviceId/alert-rules",
+    authMiddleware,
+    async (req, res, next) => {
+      try {
+        const userId = (req as any).userId;
+        const { deviceId } = req.params;
+
+        await assertDeviceAccess(pool, deviceId, userId);
+
+        const result = await pool.query(
+          "SELECT alert_rules FROM devices WHERE device_id = $1",
+          [deviceId]
+        );
+
+        const rules = result.rows[0]?.alert_rules || {
+          airTemperatureMax: 35,
+          airTemperatureMin: 15,
+          airHumidityMax: 90,
+          airHumidityMin: 30,
+          soilMoistureMin: 40,
+          soilMoistureMax: 90,
+          lightLevelMin: 200,
+        };
+
+        res.json(successResponse(rules));
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  app.post(
+    "/api/devices/:deviceId/alert-rules",
+    authMiddleware,
+    async (req, res, next) => {
+      try {
+        const userId = (req as any).userId;
+        const { deviceId } = req.params;
+        const rules = req.body;
+
+        await assertDeviceAccess(pool, deviceId, userId);
+
+        await pool.query(
+          "UPDATE devices SET alert_rules = $1 WHERE device_id = $2",
+          [JSON.stringify(rules), deviceId]
+        );
+
+        res.json(successResponse({ message: "Alert rules updated successfully" }));
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
   // Error handler (must be last)
   app.use(errorHandler);
 

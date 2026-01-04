@@ -21,4 +21,8 @@ class ApiConstants {
   static String deviceStatus(String deviceId) =>
       '/api/devices/$deviceId/status';
   static String deleteDevice(String deviceId) => '/api/devices/$deviceId';
+
+  // Notification endpoints
+  static const String notifications = '/api/notifications';
+  static const String registerFCMToken = '/api/notifications/register-token';
 }
