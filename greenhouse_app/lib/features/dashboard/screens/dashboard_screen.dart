@@ -4,12 +4,9 @@ import '../../../core/services/api_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/device_service.dart';
 import '../../../core/models/device.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../devices/screens/device_detail_screen.dart';
-import '../widgets/device_card.dart';
-import '../widgets/add_device_dialog.dart';
+import '../../devices/screens/qr_scanner_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,10 +16,10 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late DeviceService _deviceService;
   List<Device> _devices = [];
   bool _isLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -32,11 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadDevices() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final devices = await _deviceService.getDevices();
       setState(() {
@@ -44,171 +37,413 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _error = 'მოწყობილობების ჩატვირთვა ვერ მოხერხდა';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _addDevice() async {
-    final deviceId = await showDialog<String>(
-      context: context,
-      builder: (context) => const AddDeviceDialog(),
-    );
-
-    if (deviceId != null && deviceId.isNotEmpty) {
-      setState(() => _isLoading = true);
-      final device = await _deviceService.registerDevice(deviceId);
-      if (device != null) {
-        _loadDevices();
-      } else {
-        setState(() => _isLoading = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('მოწყობილობის დამატება ვერ მოხერხდა'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(AppStrings.logout),
-        content: const Text('ნამდვილად გსურთ გასვლა?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(AppStrings.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              AppStrings.logout,
-              style: TextStyle(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && mounted) {
-      await context.read<AuthService>().logout();
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(AppStrings.myDevices),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadDevices),
-          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
-        ],
-      ),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addDevice,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          AppStrings.addDevice,
-          style: TextStyle(color: Colors.white),
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF5F5F5),
+      drawer: _buildDrawer(),
+      body: SafeArea(
+        child: Column(
+          children: [_buildHeader(), Expanded(child: _buildBody())],
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: Colors.white,
+      child: Row(
+        children: [
+          // Hamburger Menu
+          GestureDetector(
+            onTap: () => _scaffoldKey.currentState?.openDrawer(),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F0),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.menu, color: Colors.black87, size: 24),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Title
+          const Expanded(
+            child: Text(
+              'მოწყობილობები',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          // Refresh
+          GestureDetector(
+            onTap: _loadDevices,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F0),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.refresh, color: Colors.black87, size: 24),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    final authService = context.read<AuthService>();
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Drawer Header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.white24,
+                    child: Icon(Icons.person, size: 36, color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'სათბური',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    authService.user?.email ?? '',
+                    style: const TextStyle(fontSize: 14, color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+
+            // Menu Items - Tell me what to add here
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _buildDrawerItem(
+                    icon: Icons.devices,
+                    title: 'მოწყობილობები',
+                    isSelected: true,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  // TODO: Add more menu items here
+                ],
+              ),
+            ),
+
+            // Logout at bottom
+            const Divider(height: 1),
+            _buildDrawerItem(
+              icon: Icons.logout,
+              title: 'გასვლა',
+              color: Colors.red,
+              onTap: _logout,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    bool isSelected = false,
+    Color? color,
+    required VoidCallback onTap,
+  }) {
+    final itemColor =
+        color ?? (isSelected ? const Color(0xFF2E7D32) : Colors.black87);
+
+    return ListTile(
+      leading: Icon(icon, color: itemColor),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: itemColor,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: const Color(0xFF2E7D32).withOpacity(0.1),
+      onTap: onTap,
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppColors.error),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadDevices,
-              child: const Text(AppStrings.retry),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_devices.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.devices_other,
-                size: 50,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              AppStrings.noDevices,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              AppStrings.noDevicesHint,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
+        child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
       );
     }
 
     return RefreshIndicator(
       onRefresh: _loadDevices,
-      color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _devices.length,
-        itemBuilder: (context, index) {
-          final device = _devices[index];
-          return DeviceCard(
-            device: device,
-            onTap: () => _navigateToDeviceDetail(device),
-            onDelete: () => _deleteDevice(device),
-          );
-        },
+      color: const Color(0xFF2E7D32),
+      child: _devices.isEmpty ? _buildEmptyState() : _buildDeviceList(),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return ListView(
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+        Column(
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E7D32).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.devices_other,
+                size: 50,
+                color: Color(0xFF2E7D32),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'მოწყობილობა არ არის',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'დაასკანერეთ QR კოდი მოწყობილობაზე',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 32),
+            // QR სკანერის ღილაკი
+            ElevatedButton.icon(
+              onPressed: _scanQrCode,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('QR კოდის სკანირება'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // ხელით დამატების ღილაკი
+            TextButton.icon(
+              onPressed: _showAddDeviceDialog,
+              icon: const Icon(Icons.keyboard, color: Color(0xFF2E7D32)),
+              label: const Text(
+                'ხელით შეყვანა',
+                style: TextStyle(color: Color(0xFF2E7D32)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceList() {
+    return Stack(
+      children: [
+        ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _devices.length,
+          itemBuilder: (context, index) => _buildDeviceCard(_devices[index]),
+        ),
+        // Floating Add Buttons
+        Positioned(
+          bottom: 24,
+          right: 24,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // QR სკანერის ღილაკი
+              FloatingActionButton(
+                heroTag: 'qr',
+                onPressed: _scanQrCode,
+                backgroundColor: const Color(0xFF4CAF50),
+                child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+              ),
+              const SizedBox(height: 12),
+              // ხელით დამატების ღილაკი
+              FloatingActionButton(
+                heroTag: 'add',
+                onPressed: _showAddDeviceDialog,
+                backgroundColor: const Color(0xFF2E7D32),
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _scanQrCode() async {
+    final deviceId = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const QrScannerScreen()));
+
+    if (deviceId != null && deviceId.isNotEmpty) {
+      await _registerDevice(deviceId);
+    }
+  }
+
+  Future<void> _registerDevice(String deviceId) async {
+    setState(() => _isLoading = true);
+    final device = await _deviceService.registerDevice(deviceId);
+    if (device != null) {
+      _loadDevices();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('მოწყობილობა "$deviceId" დამატებულია'),
+            backgroundColor: const Color(0xFF2E7D32),
+          ),
+        );
+      }
+    } else {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('დამატება ვერ მოხერხდა'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildDeviceCard(Device device) {
+    // TODO: Add actual online status check when telemetry is available
+    const isOnline = false;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _navigateToDeviceDetail(device),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Device Icon
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.memory,
+                    color: Color(0xFF2E7D32),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Device Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        device.deviceId,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: isOnline ? Colors.green : Colors.grey,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isOnline ? 'ონლაინ' : 'ოფლაინ',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isOnline ? Colors.green : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Delete Button
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _deleteDevice(device),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -219,42 +454,189 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Future<void> _showAddDeviceDialog() async {
+    final controller = TextEditingController();
+
+    final deviceId = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('მოწყობილობის დამატება'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'შეიყვანეთ მოწყობილობის ID\n(მაგ: ESP32_001)',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: 'ESP32_XXX',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF2E7D32),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'გაუქმება',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, controller.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'დამატება',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (deviceId != null && deviceId.isNotEmpty) {
+      setState(() => _isLoading = true);
+      final device = await _deviceService.registerDevice(deviceId);
+      if (device != null) {
+        _loadDevices();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('მოწყობილობა დამატებულია'),
+              backgroundColor: Color(0xFF2E7D32),
+            ),
+          );
+        }
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('დამატება ვერ მოხერხდა'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _deleteDevice(Device device) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(AppStrings.removeDevice),
-        content: Text(
-          'ნამდვილად გსურთ მოწყობილობის "${device.deviceId}" წაშლა?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(AppStrings.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              AppStrings.delete,
-              style: TextStyle(color: AppColors.error),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
+            title: const Text('წაშლა'),
+            content: Text('წავშალოთ "${device.deviceId}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('არა', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'წაშლა',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirm == true) {
       final success = await _deviceService.removeDevice(device.deviceId);
       if (success) {
         _loadDevices();
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('მოწყობილობის წაშლა ვერ მოხერხდა'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('მოწყობილობა წაშლილია'),
+              backgroundColor: Color(0xFF2E7D32),
+            ),
+          );
+        }
       }
+    }
+  }
+
+  Future<void> _logout() async {
+    Navigator.pop(context); // Close drawer
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('გასვლა'),
+            content: const Text('ნამდვილად გსურთ გასვლა?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('არა', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'გასვლა',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true && mounted) {
+      await context.read<AuthService>().logout();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
     }
   }
 }

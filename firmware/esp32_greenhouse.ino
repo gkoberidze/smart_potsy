@@ -7,6 +7,9 @@ const char *MQTT_BROKER = "192.168.153.142"; // Update to your EMQX broker IP
 const uint16_t MQTT_PORT = 1883;
 const char *MQTT_USERNAME = "";
 const char *MQTT_PASSWORD = "";
+
+// Device ID - ეს არის უნიკალური ID თითოეული მოწყობილობისთვის
+// ჩაწერე მოწყობილობაზე მიწერილი ID: ESP32_001, ESP32_002, ESP32_003...
 const char *DEVICE_ID = "ESP32_001";
 
 WiFiClient wifiClient;
@@ -121,6 +124,9 @@ void setup()
 {
   Serial.begin(115200);
   delay(2000);
+
+  Serial.print("Device ID: ");
+  Serial.println(DEVICE_ID);
 
   connectWiFi();
   connectMqtt();

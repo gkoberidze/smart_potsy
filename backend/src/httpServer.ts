@@ -566,22 +566,38 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
 
         await assertDeviceAccess(pool, deviceId, userId);
 
-        const result = await pool.query(
+        // Get device status
+        const statusResult = await pool.query(
           "SELECT device_id, status, reported_at FROM device_status WHERE device_id = $1",
           [deviceId]
         );
 
-        const status = result.rows[0] || {
-          device_id: deviceId,
-          status: "unknown",
-          reported_at: null,
-        };
+        // Get latest telemetry
+        const telemetryResult = await pool.query(
+          `SELECT air_temperature, air_humidity, soil_temperature, soil_moisture, light_level, recorded_at 
+           FROM telemetry WHERE device_id = $1 ORDER BY recorded_at DESC LIMIT 1`,
+          [deviceId]
+        );
+
+        const status = statusResult.rows[0];
+        const telemetry = telemetryResult.rows[0];
+
+        // Check if online (status reported within last 2 minutes)
+        const isOnline = status?.status === 'online' && status?.reported_at && 
+          (Date.now() - new Date(status.reported_at).getTime()) < 2 * 60 * 1000;
 
         res.json(
           successResponse({
-            deviceId: status.device_id,
-            status: status.status,
-            reportedAt: status.reported_at,
+            online: isOnline,
+            lastSeen: status?.reported_at || telemetry?.recorded_at || null,
+            latestTelemetry: telemetry ? {
+              airTemperature: telemetry.air_temperature,
+              airHumidity: telemetry.air_humidity,
+              soilTemperature: telemetry.soil_temperature,
+              soilMoisture: telemetry.soil_moisture,
+              lightLevel: telemetry.light_level,
+              recordedAt: telemetry.recorded_at,
+            } : null,
           })
         );
       } catch (err) {

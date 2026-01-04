@@ -1,34 +1,40 @@
 class Telemetry {
-  final int id;
-  final String deviceId;
+  final int? id;
+  final String? deviceId;
   final double? airTemperature;
   final double? airHumidity;
   final double? soilTemperature;
   final double? soilMoisture;
-  final int? lightLevel;
-  final DateTime recordedAt;
+  final double? lightLevel;
+  final DateTime? recordedAt;
 
   Telemetry({
-    required this.id,
-    required this.deviceId,
+    this.id,
+    this.deviceId,
     this.airTemperature,
     this.airHumidity,
     this.soilTemperature,
     this.soilMoisture,
     this.lightLevel,
-    required this.recordedAt,
+    this.recordedAt,
   });
 
   factory Telemetry.fromJson(Map<String, dynamic> json) {
     return Telemetry(
       id: json['id'],
-      deviceId: json['device_id'],
-      airTemperature: json['air_temp']?.toDouble(),
-      airHumidity: json['air_humidity']?.toDouble(),
-      soilTemperature: json['soil_temp']?.toDouble(),
-      soilMoisture: json['soil_moisture']?.toDouble(),
-      lightLevel: json['light_level'],
-      recordedAt: DateTime.parse(json['recorded_at']),
+      deviceId: json['device_id'] ?? json['deviceId'],
+      airTemperature: (json['air_temp'] ?? json['airTemperature'])?.toDouble(),
+      airHumidity: (json['air_humidity'] ?? json['airHumidity'])?.toDouble(),
+      soilTemperature:
+          (json['soil_temp'] ?? json['soilTemperature'])?.toDouble(),
+      soilMoisture: (json['soil_moisture'] ?? json['soilMoisture'])?.toDouble(),
+      lightLevel: (json['light_level'] ?? json['lightLevel'])?.toDouble(),
+      recordedAt:
+          json['recorded_at'] != null
+              ? DateTime.parse(json['recorded_at'])
+              : json['recordedAt'] != null
+              ? DateTime.parse(json['recordedAt'])
+              : null,
     );
   }
 
@@ -41,7 +47,7 @@ class Telemetry {
       'soil_temp': soilTemperature,
       'soil_moisture': soilMoisture,
       'light_level': lightLevel,
-      'recorded_at': recordedAt.toIso8601String(),
+      'recorded_at': recordedAt?.toIso8601String(),
     };
   }
 }

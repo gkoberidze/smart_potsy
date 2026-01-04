@@ -1,4 +1,4 @@
-import { express, Pool } from "pg";
+import { Pool } from "pg";
 import { ApiError } from "./apiResponse";
 
 export const checkDeviceAccess = async (

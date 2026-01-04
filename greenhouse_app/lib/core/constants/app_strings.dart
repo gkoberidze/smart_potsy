@@ -12,7 +12,7 @@ class AppStrings {
   static const String confirmPassword = 'გაიმეორეთ პაროლი';
   static const String forgotPassword = 'დაგავიწყდათ პაროლი?';
   static const String resetPassword = 'პაროლის აღდგენა';
-  static const String sendResetLink = 'ბმულის გაგზავნა';
+  static const String sendResetLink = 'კოდის გაგზავნა';
   static const String backToLogin = 'შესვლაზე დაბრუნება';
   static const String noAccount = 'არ გაქვთ ანგარიში?';
   static const String haveAccount = 'უკვე გაქვთ ანგარიში?';
