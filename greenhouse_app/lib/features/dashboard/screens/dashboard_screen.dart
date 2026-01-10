@@ -9,6 +9,7 @@ import '../../devices/screens/device_detail_screen.dart';
 import '../../devices/screens/qr_scanner_screen.dart';
 import '../../settings/screens/terms_and_conditions_screen.dart';
 import '../../settings/screens/privacy_policy_screen.dart';
+import '../../settings/screens/settings_screen.dart';
 import 'recommendations_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -207,6 +208,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const RecommendationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.settings,
+                    title: 'პარამეტრები',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
                         ),
                       );
                     },

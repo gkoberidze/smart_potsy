@@ -64,10 +64,17 @@ class ApiResponse {
     final body = response.body.isNotEmpty ? jsonDecode(response.body) : null;
     final success = response.statusCode >= 200 && response.statusCode < 300;
 
+    // Extract the 'data' field from the API response wrapper
+    // Backend returns: { success: bool, data: {...}, timestamp: string }
+    final data = body is Map ? body['data'] : body;
+    final errorInfo = body is Map ? body['error'] : null;
+    final errorMessage =
+        errorInfo is Map ? errorInfo['message'] : errorInfo?.toString();
+
     return ApiResponse(
-      success: success,
-      data: body,
-      error: success ? null : (body?['error'] ?? 'Unknown error'),
+      success: success && (body?['success'] ?? true),
+      data: data,
+      error: success ? null : (errorMessage ?? 'Unknown error'),
       statusCode: response.statusCode,
     );
   }

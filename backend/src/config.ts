@@ -24,10 +24,11 @@ export const config = {
   },
   jwt: {
     secret: readEnv("JWT_SECRET"),
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    expiresIn: process.env.JWT_EXPIRES_IN || "24h",
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   },
   bcrypt: {
-    rounds: parseInt(process.env.BCRYPT_ROUNDS || "10", 10),
+    rounds: parseInt(process.env.BCRYPT_ROUNDS || "12", 10),
   },
   logLevel: process.env.LOG_LEVEL || "info",
 };

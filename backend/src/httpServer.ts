@@ -47,7 +47,12 @@ import {
 
 const RegisterSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
 });
 
 const LoginSchema = z.object({
@@ -373,16 +378,65 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         const user = await getUserByResetToken(token);
 
         if (!user) {
-          res.status(400).json({ error: "Invalid or expired token" });
-          return;
+          throw new ApiError(400, "INVALID_TOKEN", "Invalid or expired token");
         }
 
         const passwordHash = await hashPassword(password);
         await updatePassword(user.id, passwordHash);
 
-        res.json({ message: "Password reset successful" });
+        res.json(successResponse({ message: "Password reset successful" }));
       } catch (err) {
         logger.error({ err }, "Reset password failed");
+        next(err);
+      }
+    }
+  );
+
+  // Change password (authenticated)
+  const ChangePasswordSchema = z.object({
+    currentPassword: z.string(),
+    newPassword: z.string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+  });
+
+  app.post(
+    "/api/auth/change-password",
+    authMiddleware,
+    validateBody(ChangePasswordSchema),
+    async (req, res, next) => {
+      try {
+        const userId = (req as any).userId;
+        const { currentPassword, newPassword } = req.body;
+
+        // Get user with password hash
+        const result = await pool.query({
+          text: "SELECT id, password_hash FROM users WHERE id = $1",
+          values: [userId]
+        });
+
+        if (result.rows.length === 0) {
+          throw new ApiError(404, "USER_NOT_FOUND", "User not found");
+        }
+
+        const user = result.rows[0];
+
+        // Verify current password
+        const isValid = await verifyPassword(currentPassword, user.password_hash);
+        if (!isValid) {
+          throw new ApiError(401, "INVALID_PASSWORD", "მიმდინარე პაროლი არასწორია");
+        }
+
+        // Hash and update new password
+        const newPasswordHash = await hashPassword(newPassword);
+        await updatePassword(userId, newPasswordHash);
+
+        res.json(successResponse({ message: "Password changed successfully" }));
+      } catch (err) {
+        logger.error({ err }, "Change password failed");
         next(err);
       }
     }
@@ -419,7 +473,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         const userDevices = await getUserDevices(userId);
 
         if (userDevices.length === 0) {
-          res.json({ devices: [] });
+          res.json(successResponse({ devices: [] }));
           return;
         }
 
@@ -447,7 +501,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
           [...userDevices, limit]
         );
 
-        res.json({ devices: rows.map(toDeviceResponse) });
+        res.json(successResponse({ devices: rows.map(toDeviceResponse) }));
       } catch (err) {
         logger.error(
           {
@@ -505,8 +559,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         if (existingDevice.rows.length > 0) {
           const existingUserId = existingDevice.rows[0].user_id;
           if (existingUserId !== 1 && existingUserId !== userId) {
-            res.status(409).json({ error: "Device is already registered to another user" });
-            return;
+            throw new ApiError(409, "DEVICE_TAKEN", "Device is already registered to another user");
           }
           await pool.query({
             text: "UPDATE devices SET user_id = $1 WHERE device_id = $2",
@@ -523,13 +576,12 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         });
         const device = deviceResult.rows[0];
 
-        res.status(201).json({
+        res.status(201).json(successResponse({
           id: device.id || 0,
           device_id: device.device_id,
           user_id: device.user_id,
           created_at: device.created_at,
-          message: "Device registered successfully"
-        });
+        }));
       } catch (err) {
         logger.error({ err, deviceId, userId }, "Failed to register device");
         next(err);

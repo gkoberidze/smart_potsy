@@ -91,8 +91,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           : Icons.visibility,
                       color: AppColors.textHint,
                     ),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed:
+                        () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                   ),
                   validator: _validatePassword,
                 ),
@@ -109,9 +111,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           : Icons.visibility,
                       color: AppColors.textHint,
                     ),
-                    onPressed: () => setState(
-                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                    ),
+                    onPressed:
+                        () => setState(
+                          () =>
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                        ),
                   ),
                   validator: _validateConfirmPassword,
                 ),
@@ -136,16 +141,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     final isLoading = auth.state == AuthState.loading;
                     return ElevatedButton(
                       onPressed: isLoading ? null : _register,
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(AppStrings.register),
+                      child:
+                          isLoading
+                              ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : const Text(AppStrings.register),
                     );
                   },
                 ),
@@ -158,9 +164,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      ),
+                      onPressed:
+                          () => Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          ),
                       child: const Text(
                         AppStrings.login,
                         style: TextStyle(
@@ -212,8 +221,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return AppStrings.passwordRequired;
     }
-    if (value.length < 6) {
-      return AppStrings.passwordTooShort;
+    if (value.length < 8) {
+      return 'პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+      return 'პაროლი უნდა შეიცავდეს მინიმუმ ერთ დიდ ასოს';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
+      return 'პაროლი უნდა შეიცავდეს მინიმუმ ერთ პატარა ასოს';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'პაროლი უნდა შეიცავდეს მინიმუმ ერთ ციფრს';
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?\":{}|<>]').hasMatch(value)) {
+      return 'პაროლი უნდა შეიცავდეს მინიმუმ ერთ სპეც. სიმბოლოს (!@#\$%^&*)';
     }
     return null;
   }

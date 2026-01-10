@@ -1,10 +1,19 @@
 class ApiConstants {
-  // Base URL - change this for production
-  static const String baseUrl = 'http://localhost:3000';
+  // ===========================================
+  // BASE URL CONFIGURATION
+  // ===========================================
+  // 🔧 DEVELOPMENT: Use one of these:
+  //    - Web/Desktop: 'http://localhost:3000'
+  //    - Android Emulator: 'http://10.0.2.2:3000'
+  //    - iOS Simulator: 'http://localhost:3000'
+  //    - Physical Device: 'http://YOUR_PC_IP:3000'
+  //
+  // 🚀 PRODUCTION: Change to your server domain:
+  //    - 'https://yourdomain.com'
+  // ===========================================
 
-  // For Android emulator use: 'http://10.0.2.2:3000'
-  // For iOS simulator use: 'http://localhost:3000'
-  // For physical device use your computer's IP: 'http://192.168.x.x:3000'
+  static const String baseUrl = 'http://localhost:3000';
+  // static const String baseUrl = 'https://yourdomain.com'; // PRODUCTION
 
   // Auth endpoints
   static const String register = '/api/auth/register';
@@ -12,6 +21,7 @@ class ApiConstants {
   static const String oauth = '/api/auth/oauth';
   static const String forgotPassword = '/api/auth/forgot-password';
   static const String resetPassword = '/api/auth/reset-password';
+  static const String changePassword = '/api/auth/change-password';
   static const String me = '/api/auth/me';
 
   // Device endpoints
