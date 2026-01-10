@@ -322,12 +322,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: Colors.black87,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
             const Text(
-              'დაასკანერეთ QR კოდი მოწყობილობაზე',
-              style: TextStyle(color: Colors.grey),
+              'მოწყობილობის დამატება:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black54,
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
             // QR სკანერის ღილაკი
             ElevatedButton.icon(
               onPressed: _scanQrCode,
@@ -346,12 +350,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // ხელით დამატების ღილაკი
+            // ხელით შეყვანა
             TextButton.icon(
-              onPressed: _showAddDeviceDialog,
+              onPressed: _showManualEntryDialog,
               icon: const Icon(Icons.keyboard, color: Color(0xFF2E7D32)),
               label: const Text(
-                'ხელით შეყვანა',
+                'შეიყვანე ხელით კოდი',
                 style: TextStyle(color: Color(0xFF2E7D32)),
               ),
             ),
@@ -384,10 +388,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: const Icon(Icons.qr_code_scanner, color: Colors.white),
               ),
               const SizedBox(height: 12),
-              // ხელით დამატების ღილაკი
+              // ხელით კოდის შეყვანა
               FloatingActionButton(
-                heroTag: 'add',
-                onPressed: _showAddDeviceDialog,
+                heroTag: 'manual',
+                onPressed: _showManualEntryDialog,
                 backgroundColor: const Color(0xFF2E7D32),
                 child: const Icon(Icons.add, color: Colors.white),
               ),
@@ -408,16 +412,137 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _showManualEntryDialog() async {
+    final controller = TextEditingController();
+
+    final deviceId = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.keyboard, color: Color(0xFF2E7D32)),
+                ),
+                const SizedBox(width: 12),
+                const Text('მოწყობილობის კოდი'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'კოდი იხილეთ მოწყობილობის სტიკერზე',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: 'GH-A3K7-B9M2',
+                    labelText: 'მოწყობილობის კოდი',
+                    prefixIcon: const Icon(
+                      Icons.memory,
+                      color: Color(0xFF2E7D32),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF2E7D32),
+                        width: 2,
+                      ),
+                    ),
+                    helperText: 'ფორმატი: GH-XXXX-XXXX',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'გაუქმება',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, controller.text.trim()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'დამატება',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (deviceId != null && deviceId.isNotEmpty) {
+      await _registerDevice(deviceId);
+    }
+  }
+
   Future<void> _registerDevice(String deviceId) async {
     setState(() => _isLoading = true);
     final device = await _deviceService.registerDevice(deviceId);
     if (device != null) {
-      _loadDevices();
+      await _loadDevices();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('მოწყობილობა "$deviceId" დამატებულია'),
+            content: Text('მოწყობილობა "${device.deviceId}" დამატებულია'),
             backgroundColor: const Color(0xFF2E7D32),
+            action: SnackBarAction(
+              label: 'ნახვა',
+              textColor: Colors.white,
+              onPressed: () => _navigateToDeviceDetail(device),
+            ),
           ),
         );
       }
@@ -532,101 +657,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => DeviceDetailScreen(device: device)),
     );
-  }
-
-  Future<void> _showAddDeviceDialog() async {
-    final controller = TextEditingController();
-
-    final deviceId = await showDialog<String>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text('მოწყობილობის დამატება'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'შეიყვანეთ მოწყობილობის ID\n(მაგ: ESP32_001)',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  decoration: InputDecoration(
-                    hintText: 'ESP32_XXX',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF2E7D32),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'გაუქმება',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, controller.text),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'დამატება',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-    );
-
-    if (deviceId != null && deviceId.isNotEmpty) {
-      setState(() => _isLoading = true);
-      final device = await _deviceService.registerDevice(deviceId);
-      if (device != null) {
-        _loadDevices();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('მოწყობილობა დამატებულია'),
-              backgroundColor: Color(0xFF2E7D32),
-            ),
-          );
-        }
-      } else {
-        setState(() => _isLoading = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('დამატება ვერ მოხერხდა'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
   }
 
   Future<void> _deleteDevice(Device device) async {

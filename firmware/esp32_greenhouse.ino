@@ -1,24 +1,40 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <Preferences.h>
 
-const char *WIFI_SSID = "Redmi 9";
-const char *WIFI_PASSWORD = "dontaskme";
-const char *MQTT_BROKER = "192.168.153.142"; // Update to your EMQX broker IP
+// ============================================================
+//  WiFi და MQTT კონფიგურაცია
+// ============================================================
+const char *WIFI_SSID = "YOUR_WIFI_NAME";
+const char *WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char *MQTT_BROKER = "YOUR_SERVER_IP"; // სერვერის IP მისამართი
 const uint16_t MQTT_PORT = 1883;
 const char *MQTT_USERNAME = "";
 const char *MQTT_PASSWORD = "";
 
-// Device ID - ეს არის უნიკალური ID თითოეული მოწყობილობისთვის
-// ჩაწერე მოწყობილობაზე მიწერილი ID: ESP32_001, ESP32_002, ESP32_003...
-const char *DEVICE_ID = "ESP32_001";
+// ============================================================
+//  მოწყობილობის კოდი (Device Key)
+// ============================================================
+// ეს კოდი უნდა დააგენერიროთ აპლიკაციაში და ჩაწეროთ აქ!
+// ფორმატი: GH-XXXX-XXXX (მაგ: GH-A3K7-B9M2)
+//
+// ნაბიჯები:
+// 1. გახსენით Greenhouse აპლიკაცია
+// 2. დააჭირეთ ლურჯ ღილაკს (✨) - "ახალი მოწყობილობის გენერაცია"
+// 3. დააკოპირეთ შექმნილი კოდი (მაგ: GH-A3K7-B9M2)
+// 4. ჩაწერეთ ქვემოთ DEVICE_KEY-ში
+// 5. ატვირთეთ კოდი ESP32-ზე
+// ============================================================
+const char *DEVICE_KEY = "GH-XXXX-XXXX"; // <-- შეცვალეთ თქვენი კოდით!
 
+Preferences preferences;
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
-const unsigned long TELEMETRY_INTERVAL_MS = 60UL * 1000UL; // 1 minute
+const unsigned long TELEMETRY_INTERVAL_MS = 60UL * 1000UL; // 1 წუთი
 unsigned long lastTelemetryMs = 0;
 
-String telemetryTopic() { return String("greenhouse/") + DEVICE_ID + "/telemetry"; }
-String statusTopic() { return String("greenhouse/") + DEVICE_ID + "/status"; }
+String telemetryTopic() { return String("greenhouse/") + DEVICE_KEY + "/telemetry"; }
+String statusTopic() { return String("greenhouse/") + DEVICE_KEY + "/status"; }
 
 void connectWiFi()
 {
@@ -63,7 +79,7 @@ void connectMqtt()
 
   lastMqttRetry = now;
 
-  String clientId = String("greenhouse-") + DEVICE_ID;
+  String clientId = String("greenhouse-") + DEVICE_KEY;
   Serial.printf("[%lu] Connecting to MQTT as %s (attempt %u)...\n", now, clientId.c_str(), mqttRetryCount + 1);
 
   bool connected = mqttClient.connect(
@@ -101,7 +117,7 @@ void publishTelemetry()
   snprintf(payload, sizeof(payload),
            "{\"deviceId\":\"%s\",\"airTemperature\":%.2f,\"airHumidity\":%.2f,"
            "\"soilTemperature\":%.2f,\"soilMoisture\":%.2f,\"lightLevel\":%.2f}",
-           DEVICE_ID,
+           DEVICE_KEY,
            readAirTemperatureC(),
            readAirHumidityPct(),
            readSoilTemperatureC(),
@@ -111,13 +127,26 @@ void publishTelemetry()
   bool published = mqttClient.publish(telemetryTopic().c_str(), payload, false);
   if (published)
   {
-    Serial.print("Telemetry sent: ");
+    Serial.print("📤 Telemetry sent: ");
     Serial.println(payload);
   }
   else
   {
-    Serial.println("Failed to publish telemetry");
+    Serial.println("❌ Failed to publish telemetry");
   }
+}
+
+void printDeviceInfo()
+{
+  Serial.println();
+  Serial.println("╔════════════════════════════════════════════════════╗");
+  Serial.println("║       🌱 GREENHOUSE IoT DEVICE 🌱                  ║");
+  Serial.println("╠════════════════════════════════════════════════════╣");
+  Serial.printf("║  Device Key: %-37s ║\n", DEVICE_KEY);
+  Serial.println("╠════════════════════════════════════════════════════╣");
+  Serial.println("║  ამ კოდით დაამატეთ მოწყობილობა აპლიკაციაში!       ║");
+  Serial.println("╚════════════════════════════════════════════════════╝");
+  Serial.println();
 }
 
 void setup()
@@ -125,8 +154,17 @@ void setup()
   Serial.begin(115200);
   delay(2000);
 
-  Serial.print("Device ID: ");
-  Serial.println(DEVICE_ID);
+  printDeviceInfo();
+
+  // Validate device key format
+  String key = String(DEVICE_KEY);
+  if (key == "GH-XXXX-XXXX" || key.length() != 12)
+  {
+    Serial.println("⚠️  WARNING: Device key not configured!");
+    Serial.println("⚠️  Please set DEVICE_KEY in the code.");
+    Serial.println("⚠️  Generate key in Greenhouse app first.");
+    Serial.println();
+  }
 
   connectWiFi();
   connectMqtt();

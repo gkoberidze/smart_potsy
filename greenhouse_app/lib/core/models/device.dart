@@ -15,10 +15,13 @@ class Device {
 
   factory Device.fromJson(Map<String, dynamic> json) {
     return Device(
-      id: json['id'],
-      deviceId: json['device_id'],
-      userId: json['user_id'],
-      createdAt: DateTime.parse(json['created_at']),
+      id: json['id'] ?? 0,
+      deviceId: json['device_id'] ?? json['deviceId'] ?? '',
+      userId: json['user_id'] ?? json['userId'] ?? 0,
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.parse(json['created_at'])
+              : DateTime.now(),
       lastSeen:
           json['last_seen'] != null ? DateTime.parse(json['last_seen']) : null,
     );

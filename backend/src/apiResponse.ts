@@ -23,11 +23,13 @@ export class ApiError extends Error {
   }
 }
 
-export const errorHandler = (
-  err: Error | ApiError,
-  req: Request,
-  res: Response,
-  next: NextFunction
+import { ErrorRequestHandler } from "express";
+
+export const errorHandler: ErrorRequestHandler = (
+  err,
+  req,
+  res,
+  next
 ) => {
   const timestamp = new Date().toISOString();
 

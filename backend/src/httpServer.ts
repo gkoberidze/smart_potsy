@@ -65,7 +65,7 @@ const QueryLimitSchema = z.object({
 });
 
 const DeviceIdSchema = z.object({
-  deviceId: z.string().regex(/^ESP32_\d{3}$/, "Invalid device ID format"),
+  deviceId: z.string().regex(/^GH-[A-Z0-9]{4}-[A-Z0-9]{4}$/, "Invalid device ID format"),
 });
 
 const TelemetryQuerySchema = z.object({
@@ -464,8 +464,15 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     }
   );
 
+  // Generate random device key: GH-XXXX-XXXX
+  const generateDeviceKey = (): string => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars like 0/O, 1/I
+    const part = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    return `GH-${part()}-${part()}`;
+  };
+
   const RegisterDeviceSchema = z.object({
-    deviceId: z.string().min(1).max(100).regex(/^ESP32_\d{3}$/, "Device ID must match format ESP32_XXX"),
+    deviceId: z.string().regex(/^GH-[A-Z0-9]{4}-[A-Z0-9]{4}$/, "Device ID must match format GH-XXXX-XXXX").optional(),
   });
 
   app.post(
@@ -474,13 +481,26 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     validateBody(RegisterDeviceSchema),
     async (req, res, next) => {
       const userId = (req as any).userId;
-      const { deviceId } = req.body;
+      let { deviceId } = req.body;
+
+      // Generate new device key if not provided
+      if (!deviceId) {
+        deviceId = generateDeviceKey();
+        // Ensure uniqueness
+        let attempts = 0;
+        while (attempts < 10) {
+          const existing = await pool.query({ text: "SELECT 1 FROM devices WHERE device_id = $1", values: [deviceId] });
+          if (existing.rows.length === 0) break;
+          deviceId = generateDeviceKey();
+          attempts++;
+        }
+      }
 
       try {
-        const existingDevice = await pool.query(
-          "SELECT user_id FROM devices WHERE device_id = $1",
-          [deviceId]
-        );
+        const existingDevice = await pool.query({
+          text: "SELECT user_id FROM devices WHERE device_id = $1",
+          values: [deviceId]
+        });
 
         if (existingDevice.rows.length > 0) {
           const existingUserId = existingDevice.rows[0].user_id;
@@ -488,15 +508,28 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
             res.status(409).json({ error: "Device is already registered to another user" });
             return;
           }
-          await pool.query(
-            "UPDATE devices SET user_id = $1 WHERE device_id = $2",
-            [userId, deviceId]
-          );
+          await pool.query({
+            text: "UPDATE devices SET user_id = $1 WHERE device_id = $2",
+            values: [userId, deviceId]
+          });
         } else {
           await createDeviceForUser(deviceId, userId);
         }
 
-        res.status(201).json({ deviceId, message: "Device registered successfully" });
+        // Return full device data
+        const deviceResult = await pool.query({
+          text: "SELECT device_id, user_id, created_at FROM devices WHERE device_id = $1",
+          values: [deviceId]
+        });
+        const device = deviceResult.rows[0];
+
+        res.status(201).json({
+          id: device.id || 0,
+          device_id: device.device_id,
+          user_id: device.user_id,
+          created_at: device.created_at,
+          message: "Device registered successfully"
+        });
       } catch (err) {
         logger.error({ err, deviceId, userId }, "Failed to register device");
         next(err);
@@ -513,7 +546,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         const userId = (req as any).userId;
         const { deviceId } = req.params as { deviceId: string };
         await assertDeviceAccess(pool, deviceId, userId);
-        await pool.query("UPDATE devices SET user_id = 1 WHERE device_id = $1", [deviceId]);
+        await pool.query({ text: "UPDATE devices SET user_id = 1 WHERE device_id = $1", values: [deviceId] });
         res.json(successResponse({ message: "Device removed from your account" }));
       } catch (err) {
         next(err);
@@ -546,7 +579,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         }
 
         query += ` ORDER BY recorded_at DESC LIMIT ${Math.min(limit, 1000)}`;
-        const result = await pool.query(query, params);
+        const result = await pool.query({ text: query, values: params });
         const telemetry = result.rows.map(toTelemetryResponse);
         res.json(successResponse(telemetry));
       } catch (err) {
@@ -616,7 +649,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         const { fcmToken } = req.body;
 
         if (!fcmToken) {
-          throw new ApiError("FCM token is required", 400);
+          throw new ApiError(400, "MISSING_FCM_TOKEN", "FCM token is required");
         }
 
         await pool.query({
@@ -680,7 +713,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         });
 
         if (result.rows.length === 0) {
-          throw new ApiError("Notification not found", 404);
+          throw new ApiError(404, "NOT_FOUND", "Notification not found");
         }
 
         res.json(successResponse({ message: "Notification marked as read" }));
@@ -689,7 +722,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
       }
     }
   );
-
+ 
   // Alert rules endpoints
   app.get(
     "/api/devices/:deviceId/alert-rules",
@@ -697,14 +730,14 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     async (req, res, next) => {
       try {
         const userId = (req as any).userId;
-        const { deviceId } = req.params;
+        const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
 
         await assertDeviceAccess(pool, deviceId, userId);
 
-        const result = await pool.query(
-          "SELECT alert_rules FROM devices WHERE device_id = $1",
-          [deviceId]
-        );
+        const result = await pool.query({
+          text: "SELECT alert_rules FROM devices WHERE device_id = $1",
+          values: [deviceId]
+        });
 
         const rules = result.rows[0]?.alert_rules || {
           airTemperatureMax: 35,
@@ -729,15 +762,15 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     async (req, res, next) => {
       try {
         const userId = (req as any).userId;
-        const { deviceId } = req.params;
+        const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
         const rules = req.body;
 
         await assertDeviceAccess(pool, deviceId, userId);
 
-        await pool.query(
-          "UPDATE devices SET alert_rules = $1 WHERE device_id = $2",
-          [JSON.stringify(rules), deviceId]
-        );
+        await pool.query({
+          text: "UPDATE devices SET alert_rules = $1 WHERE device_id = $2",
+          values: [JSON.stringify(rules), deviceId]
+        });
 
         res.json(successResponse({ message: "Alert rules updated successfully" }));
       } catch (err) {

@@ -17,14 +17,24 @@ class DeviceService {
     return [];
   }
 
-  Future<Device?> registerDevice(String deviceId) async {
-    final response = await _apiService.post(ApiConstants.devices, {
-      'deviceId': deviceId,
-    });
+  Future<Device?> registerDevice(String? deviceId) async {
+    final body =
+        deviceId != null && deviceId.isNotEmpty
+            ? {'deviceId': deviceId}
+            : <
+              String,
+              dynamic
+            >{}; // Empty body = generate new device key on server
+    final response = await _apiService.post(ApiConstants.devices, body);
     if (response.success && response.data != null) {
       return Device.fromJson(response.data);
     }
     return null;
+  }
+
+  /// Generate a new device with auto-generated key
+  Future<Device?> generateNewDevice() async {
+    return registerDevice(null);
   }
 
   Future<bool> removeDevice(String deviceId) async {
@@ -67,12 +77,12 @@ class DeviceStatus {
   factory DeviceStatus.fromJson(Map<String, dynamic> json) {
     return DeviceStatus(
       online: json['online'] ?? false,
-      lastSeen: json['lastSeen'] != null
-          ? DateTime.parse(json['lastSeen'])
-          : null,
-      latestTelemetry: json['latestTelemetry'] != null
-          ? Telemetry.fromJson(json['latestTelemetry'])
-          : null,
+      lastSeen:
+          json['lastSeen'] != null ? DateTime.parse(json['lastSeen']) : null,
+      latestTelemetry:
+          json['latestTelemetry'] != null
+              ? Telemetry.fromJson(json['latestTelemetry'])
+              : null,
     );
   }
 }

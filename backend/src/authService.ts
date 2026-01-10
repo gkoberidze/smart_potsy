@@ -39,9 +39,9 @@ export const verifyGoogleToken = async (accessToken: string): Promise<{ email: s
   try {
     const response = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
     if (!response.ok) return null;
-    const data = await response.json();
+    const data = await response.json() as { email?: string; sub?: string };
     if (!data.email) return null;
-    return { email: data.email, id: data.sub };
+    return { email: data.email, id: data.sub || '' };
   } catch {
     return null;
   }
@@ -51,9 +51,9 @@ export const verifyFacebookToken = async (accessToken: string): Promise<{ email:
   try {
     const response = await fetch(`https://graph.facebook.com/me?fields=id,email&access_token=${accessToken}`);
     if (!response.ok) return null;
-    const data = await response.json();
+    const data = await response.json() as { email?: string; id?: string };
     if (!data.email) return null;
-    return { email: data.email, id: data.id };
+    return { email: data.email, id: data.id || '' };
   } catch {
     return null;
   }

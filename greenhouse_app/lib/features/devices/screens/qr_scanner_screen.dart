@@ -27,7 +27,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
-      if (code != null && code.startsWith('ESP32_')) {
+      // Accept both old ESP32_XXX and new GH-XXXX-XXXX formats
+      if (code != null &&
+          (code.startsWith('GH-') || code.startsWith('ESP32_'))) {
         _isProcessing = true;
         _controller.stop();
         Navigator.of(context).pop(code);
@@ -96,35 +98,18 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             bottom: 100,
             left: 0,
             right: 0,
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  margin: const EdgeInsets.symmetric(horizontal: 40),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'მიატანეთ კამერა მოწყობილობაზე\nარსებულ QR კოდს',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // ხელით შეყვანის ღილაკი
-                TextButton.icon(
-                  onPressed: () => _showManualEntryDialog(),
-                  icon: const Icon(Icons.keyboard, color: Colors.white70),
-                  label: const Text(
-                    'ხელით შეყვანა',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ),
-              ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              margin: const EdgeInsets.symmetric(horizontal: 40),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'მიატანეთ კამერა მოწყობილობაზე\nარსებულ QR კოდს',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
             ),
           ),
         ],
@@ -184,80 +169,6 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _showManualEntryDialog() async {
-    final controller = TextEditingController();
-
-    final deviceId = await showDialog<String>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text('მოწყობილობის ID'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'შეიყვანეთ მოწყობილობაზე მითითებული ID',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  decoration: InputDecoration(
-                    hintText: 'ESP32_001',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF2E7D32),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'გაუქმება',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, controller.text.trim()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'დამატება',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-    );
-
-    if (deviceId != null && deviceId.isNotEmpty && mounted) {
-      Navigator.of(context).pop(deviceId);
-    }
   }
 }
 

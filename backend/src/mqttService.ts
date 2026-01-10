@@ -6,7 +6,7 @@ import { config } from "./config";
 import { createDeviceForUser, verifyDeviceExists } from "./db";
 
 const telemetrySchema = z.object({
-  deviceId: z.string().regex(/^ESP32_\d{3}$/),
+  deviceId: z.string().regex(/^(ESP32_\d{3}|GH-[A-Z0-9]{4}-[A-Z0-9]{4})$/),
   airTemperature: z.number(),
   airHumidity: z.number().min(0).max(100),
   soilTemperature: z.number(),
@@ -20,7 +20,7 @@ const statusSchema = z.object({
 
 type TopicKind = "telemetry" | "status";
 
-const DEVICE_ID_REGEX = /^ESP32_\d{3}$/;
+const DEVICE_ID_REGEX = /^(ESP32_\d{3}|GH-[A-Z0-9]{4}-[A-Z0-9]{4})$/;
 
 const parseTopic = (topic: string): { deviceId: string; kind: TopicKind } | null => {
   const parts = topic.split("/");
