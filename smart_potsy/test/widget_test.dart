@@ -12,7 +12,7 @@ import 'package:smart_potsy/main.dart';
 
 void main() {
   testWidgets('App loads correctly', (WidgetTester tester) async {
-    await tester.pumpWidget(const GreenhouseApp());
+    await tester.pumpWidget(const SmartPotsyApp());
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 }
