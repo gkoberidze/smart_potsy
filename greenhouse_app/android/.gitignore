@@ -1,3 +1,5 @@
+# Ignore Java heap dump files
+*.hprof
 gradle-wrapper.jar
 /.gradle
 /captures/
