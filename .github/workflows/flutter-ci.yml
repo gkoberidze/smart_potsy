@@ -4,12 +4,12 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - "greenhouse_app/**"
+      - "smart_potsy/**"
       - ".github/workflows/flutter-ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - "greenhouse_app/**"
+      - "smart_potsy/**"
 
 jobs:
   build:
@@ -26,18 +26,18 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
-        working-directory: greenhouse_app
+        working-directory: smart_potsy
 
       - name: Analyze code
         run: flutter analyze
-        working-directory: greenhouse_app
+        working-directory: smart_potsy
         continue-on-error: true
 
       - name: Format check
         run: flutter format --set-exit-if-changed .
-        working-directory: greenhouse_app
+        working-directory: smart_potsy
         continue-on-error: true
 
       - name: Build APK
         run: flutter build apk --release
-        working-directory: greenhouse_app
+        working-directory: smart_potsy

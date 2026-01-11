@@ -68,7 +68,7 @@ static const String baseUrl = 'https://yourdomain.com';
 
 ### APK Build:
 ```bash
-cd greenhouse_app
+cd smart_potsy
 flutter build apk --release
 ```
 
