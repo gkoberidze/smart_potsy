@@ -1,3 +1,22 @@
+// Admin user IDs (add your admin user id here)
+const ADMIN_USER_IDS = [1]; // Update with your admin user id(s)
+  // Admin middleware
+  const adminMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const userId = (req as any).userId;
+    if (!ADMIN_USER_IDS.includes(userId)) {
+      return res.status(403).json({ error: "Forbidden: Admins only" });
+    }
+    next();
+  };
+  // List all users (admin only)
+  app.get("/api/admin/users", authMiddleware, adminMiddleware, async (_req, res, next) => {
+    try {
+      const users = await getAllUsers();
+      res.json(successResponse({ users }));
+    } catch (err) {
+      next(err);
+    }
+  });
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";

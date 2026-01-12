@@ -1,3 +1,10 @@
+// Get all users (admin only)
+export const getAllUsers = async (): Promise<Pick<User, "id" | "email" | "created_at">[]> => {
+  const result = await pool.query(
+    "SELECT id, email, created_at FROM users ORDER BY created_at DESC"
+  );
+  return result.rows;
+};
 import { Pool } from "pg";
 import { config } from "./config";
 import { logger } from "./logger";
