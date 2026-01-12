@@ -5,7 +5,7 @@ import '../../core/constants/api_constants.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final String jwtToken;
-  const AdminUsersScreen({Key? key, required this.jwtToken}) : super(key: key);
+  const AdminUsersScreen({super.key, required this.jwtToken});
 
   @override
   State<AdminUsersScreen> createState() => _AdminUsersScreenState();
