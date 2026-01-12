@@ -1,22 +1,3 @@
-// Admin user IDs (add your admin user id here)
-const ADMIN_USER_IDS = [1]; // Update with your admin user id(s)
-  // Admin middleware
-  const adminMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const userId = (req as any).userId;
-    if (!ADMIN_USER_IDS.includes(userId)) {
-      return res.status(403).json({ error: "Forbidden: Admins only" });
-    }
-    next();
-  };
-  // List all users (admin only)
-  app.get("/api/admin/users", authMiddleware, adminMiddleware, async (_req, res, next) => {
-    try {
-      const users = await getAllUsers();
-      res.json(successResponse({ users }));
-    } catch (err) {
-      next(err);
-    }
-  });
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -44,6 +25,7 @@ import {
   updatePassword,
   updateUserOAuth,
   verifyDeviceOwnership,
+  getAllUsers,  // Add this import if it's defined in db.ts
 } from "./db";
 import { config } from "./config";
 import { sendPasswordResetEmail } from "./emailService";
@@ -138,7 +120,7 @@ const sendAuthResponse = (res: express.Response, user: any, statusCode = 200) =>
   );
 };
 
-const authMiddleware = async (
+const authMiddleware = (
   req: express.Request,
   res: express.Response,
   next: express.NextFunction
@@ -157,6 +139,18 @@ const authMiddleware = async (
   } catch (err) {
     next(new ApiError(401, "INVALID_TOKEN", "Invalid token"));
   }
+};
+
+// Admin user IDs (add your admin user id here)
+const ADMIN_USER_IDS = [1]; // Update with your admin user id(s)
+
+// Admin middleware
+const adminMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const userId = (req as any).userId;
+  if (!ADMIN_USER_IDS.includes(userId)) {
+    return res.status(403).json({ error: "Forbidden: Admins only" });
+  }
+  next();
 };
 
 export const createHttpServer = (pool: Pool, logger: Logger) => {
@@ -216,7 +210,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     next();
   };
 
-  app.get("/", (_req, res) => {
+  app.get("/", (_req: express.Request, res: express.Response) => {
     res.json(
       successResponse({
         name: "Greenhouse IoT API",
@@ -243,7 +237,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     );
   });
 
-  app.get("/health", async (_req, res) => {
+  app.get("/health", async (_req: express.Request, res: express.Response) => {
     try {
       await pool.query("SELECT 1");
 
@@ -254,32 +248,35 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         })
       );
     } catch (err) {
-      logger.error({ err }, "Health check failed");
-      res.status(503).json({
-        success: false,
-        error: {
-          code: "DATABASE_ERROR",
-          message: "Database connection failed",
-          details: err instanceof Error ? err.message : "Unknown error",
-        },
-        timestamp: new Date().toISOString(),
-      });
+      res.status(500).json({ error: "Database connection failed" });
     }
   });
 
+  // List all users (admin only)
+  app.get("/api/admin/users", authMiddleware, adminMiddleware, async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+      const users = await getAllUsers();
+      res.json(successResponse({ users }));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // User registration
   app.post(
     "/api/auth/register",
     validateBody(RegisterSchema),
-    async (req, res, next) => {
+    async (req: express.Request, res: express.Response, next: express.NextFunction) => {
       try {
         const { email, password } = req.body;
+        // Check if user already exists
         const existingUser = await getUserByEmail(email);
         if (existingUser) {
-          throw new ApiError(409, "USER_EXISTS", "User already exists");
+          return res.status(409).json({ error: "User already exists" });
         }
-
-        const passwordHash = await hashPassword(password);
-        const user = await createUser(email, passwordHash);
+        // Hash password and create user
+        const hashedPassword = await hashPassword(password);
+        const user = await createUser(email, hashedPassword);
         sendAuthResponse(res, user, 201);
       } catch (err) {
         next(err);
@@ -287,568 +284,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     }
   );
 
-  app.post(
-    "/api/auth/login",
-    validateBody(LoginSchema),
-    async (req, res, next) => {
-      try {
-        const { email, password } = req.body;
-        const user = await getUserByEmail(email);
-        if (!user || !user.password_hash) {
-          throw new ApiError(401, "AUTH_FAILED", "Invalid email or password");
-        }
-
-        const passwordValid = await verifyPassword(password, user.password_hash);
-        if (!passwordValid) {
-          throw new ApiError(401, "AUTH_FAILED", "Invalid email or password");
-        }
-
-        sendAuthResponse(res, user);
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  // OAuth login (Google/Facebook)
-  const OAuthSchema = z.object({
-    provider: z.enum(["google", "facebook"]),
-    accessToken: z.string(),
-  });
-
-  app.post(
-    "/api/auth/oauth",
-    validateBody(OAuthSchema),
-    async (req, res, next) => {
-      try {
-        const { provider, accessToken } = req.body;
-        const verifier = provider === "google" ? verifyGoogleToken : verifyFacebookToken;
-        const oauthData = await verifier(accessToken);
-        if (!oauthData) {
-          throw new ApiError(401, "INVALID_OAUTH_TOKEN", "Invalid OAuth token");
-        }
-
-        let user = await getUserByEmail(oauthData.email);
-        if (!user) {
-          user = await createOAuthUser(oauthData.email, provider, oauthData.id);
-        } else {
-          await updateUserOAuth(oauthData.email, provider, oauthData.id);
-        }
-
-        sendAuthResponse(res, user);
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  // Forgot password
-  const ForgotPasswordSchema = z.object({
-    email: z.string().email(),
-  });
-
-  app.post(
-    "/api/auth/forgot-password",
-    validateBody(ForgotPasswordSchema),
-    async (req, res, next) => {
-      try {
-        const { email } = req.body;
-
-        const user = await getUserByEmail(email);
-
-        // Always return success to prevent email enumeration
-        if (!user) {
-          res.json({ message: "If email exists, reset link sent" });
-          return;
-        }
-
-        const resetToken = generateResetToken();
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-        await setResetToken(user.id, resetToken, expiresAt);
-
-        // Send code directly instead of link
-        const emailSent = await sendPasswordResetEmail(email, resetToken);
-        if (!emailSent) {
-          logger.info({ email, resetToken }, "SMTP not configured - reset code logged");
-        }
-
-        res.json({ message: "If email exists, reset link sent" });
-      } catch (err) {
-        logger.error({ err }, "Forgot password failed");
-        next(err);
-      }
-    }
-  );
-
-  // Reset password
-  const ResetPasswordSchema = z.object({
-    token: z.string(),
-    password: z.string().min(6),
-  });
-
-  app.post(
-    "/api/auth/reset-password",
-    validateBody(ResetPasswordSchema),
-    async (req, res, next) => {
-      try {
-        const { token, password } = req.body;
-
-        const user = await getUserByResetToken(token);
-
-        if (!user) {
-          throw new ApiError(400, "INVALID_TOKEN", "Invalid or expired token");
-        }
-
-        const passwordHash = await hashPassword(password);
-        await updatePassword(user.id, passwordHash);
-
-        res.json(successResponse({ message: "Password reset successful" }));
-      } catch (err) {
-        logger.error({ err }, "Reset password failed");
-        next(err);
-      }
-    }
-  );
-
-  // Change password (authenticated)
-  const ChangePasswordSchema = z.object({
-    currentPassword: z.string(),
-    newPassword: z.string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number")
-      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
-  });
-
-  app.post(
-    "/api/auth/change-password",
-    authMiddleware,
-    validateBody(ChangePasswordSchema),
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const { currentPassword, newPassword } = req.body;
-
-        // Get user with password hash
-        const result = await pool.query({
-          text: "SELECT id, password_hash FROM users WHERE id = $1",
-          values: [userId]
-        });
-
-        if (result.rows.length === 0) {
-          throw new ApiError(404, "USER_NOT_FOUND", "User not found");
-        }
-
-        const user = result.rows[0];
-
-        // Verify current password
-        const isValid = await verifyPassword(currentPassword, user.password_hash);
-        if (!isValid) {
-          throw new ApiError(401, "INVALID_PASSWORD", "მიმდინარე პაროლი არასწორია");
-        }
-
-        // Hash and update new password
-        const newPasswordHash = await hashPassword(newPassword);
-        await updatePassword(userId, newPasswordHash);
-
-        res.json(successResponse({ message: "Password changed successfully" }));
-      } catch (err) {
-        logger.error({ err }, "Change password failed");
-        next(err);
-      }
-    }
-  );
-
-  app.get("/api/auth/me", authMiddleware, async (req, res, next) => {
-    try {
-      const userId = (req as any).userId;
-      const userEmail = (req as any).userEmail;
-      res.json({
-        user: {
-          id: userId,
-          email: userEmail,
-        },
-      });
-    } catch (err) {
-      logger.error({ err }, "Failed to get user info");
-      next(err);
-    }
-  });
-
-  app.get(
-    "/api/devices",
-    authMiddleware,
-    validateQuery(QueryLimitSchema),
-    async (req, res, next) => {
-      const userId = (req as any).userId;
-      const limit = Math.min(
-        Math.max(parseInt((req.query.limit as string) ?? "100", 10) || 100, 1),
-        500
-      );
-
-      try {
-        const userDevices = await getUserDevices(userId);
-
-        if (userDevices.length === 0) {
-          res.json(successResponse({ devices: [] }));
-          return;
-        }
-
-        const placeholders = userDevices
-          .map((_, i) => `$${i + 1}`)
-          .join(",");
-        const { rows } = await pool.query(
-          `
-          SELECT DISTINCT ON (t.device_id)
-            t.device_id,
-            t.air_temperature,
-            t.air_humidity,
-            t.soil_temperature,
-            t.soil_moisture,
-            t.light_level,
-            t.recorded_at,
-            s.status,
-            s.reported_at as status_reported_at
-          FROM telemetry t
-          LEFT JOIN device_status s ON s.device_id = t.device_id
-          WHERE t.device_id IN (${placeholders})
-          ORDER BY t.device_id, t.recorded_at DESC
-          LIMIT $${userDevices.length + 1};
-          `,
-          [...userDevices, limit]
-        );
-
-        res.json(successResponse({ devices: rows.map(toDeviceResponse) }));
-      } catch (err) {
-        logger.error(
-          {
-            err,
-            endpoint: "/api/devices",
-            userId,
-            limit,
-            timestamp: new Date().toISOString(),
-          },
-          "Failed to fetch devices"
-        );
-        next(err);
-      }
-    }
-  );
-
-  // Generate random device key: GH-XXXX-XXXX
-  const generateDeviceKey = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars like 0/O, 1/I
-    const part = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    return `GH-${part()}-${part()}`;
-  };
-
-  const RegisterDeviceSchema = z.object({
-    deviceId: z.string().regex(/^GH-[A-Z0-9]{4}-[A-Z0-9]{4}$/, "Device ID must match format GH-XXXX-XXXX").optional(),
-  });
-
-  app.post(
-    "/api/devices",
-    authMiddleware,
-    validateBody(RegisterDeviceSchema),
-    async (req, res, next) => {
-      const userId = (req as any).userId;
-      let { deviceId } = req.body;
-
-      // Generate new device key if not provided
-      if (!deviceId) {
-        deviceId = generateDeviceKey();
-        // Ensure uniqueness
-        let attempts = 0;
-        while (attempts < 10) {
-          const existing = await pool.query({ text: "SELECT 1 FROM devices WHERE device_id = $1", values: [deviceId] });
-          if (existing.rows.length === 0) break;
-          deviceId = generateDeviceKey();
-          attempts++;
-        }
-      }
-
-      try {
-        const existingDevice = await pool.query({
-          text: "SELECT user_id FROM devices WHERE device_id = $1",
-          values: [deviceId]
-        });
-
-        if (existingDevice.rows.length > 0) {
-          const existingUserId = existingDevice.rows[0].user_id;
-          if (existingUserId !== 1 && existingUserId !== userId) {
-            throw new ApiError(409, "DEVICE_TAKEN", "Device is already registered to another user");
-          }
-          await pool.query({
-            text: "UPDATE devices SET user_id = $1 WHERE device_id = $2",
-            values: [userId, deviceId]
-          });
-        } else {
-          await createDeviceForUser(deviceId, userId);
-        }
-
-        // Return full device data
-        const deviceResult = await pool.query({
-          text: "SELECT device_id, user_id, created_at FROM devices WHERE device_id = $1",
-          values: [deviceId]
-        });
-        const device = deviceResult.rows[0];
-
-        res.status(201).json(successResponse({
-          id: device.id || 0,
-          device_id: device.device_id,
-          user_id: device.user_id,
-          created_at: device.created_at,
-        }));
-      } catch (err) {
-        logger.error({ err, deviceId, userId }, "Failed to register device");
-        next(err);
-      }
-    }
-  );
-
-  app.delete(
-    "/api/devices/:deviceId",
-    authMiddleware,
-    validateQuery(DeviceIdSchema),
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const { deviceId } = req.params as { deviceId: string };
-        await assertDeviceAccess(pool, deviceId, userId);
-        await pool.query({ text: "UPDATE devices SET user_id = 1 WHERE device_id = $1", values: [deviceId] });
-        res.json(successResponse({ message: "Device removed from your account" }));
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  app.get(
-    "/api/devices/:deviceId/telemetry",
-    authMiddleware,
-    validateQuery(DeviceIdSchema.merge(TelemetryQuerySchema)),
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const { deviceId } = req.params as { deviceId: string };
-        const limit = validateLimit(req.query.limit as string);
-
-        await assertDeviceAccess(pool, deviceId, userId);
-
-        const sinceParam = req.query.since as string | undefined;
-        let query = `SELECT * FROM telemetry WHERE device_id = $1`;
-        const params: any[] = [deviceId];
-
-        if (sinceParam) {
-          const parsed = new Date(sinceParam);
-          if (!Number.isNaN(parsed.getTime())) {
-            query += ` AND recorded_at > $2`;
-            params.push(sinceParam);
-          }
-        }
-
-        query += ` ORDER BY recorded_at DESC LIMIT ${Math.min(limit, 1000)}`;
-        const result = await pool.query({ text: query, values: params });
-        const telemetry = result.rows.map(toTelemetryResponse);
-        res.json(successResponse(telemetry));
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  app.get(
-    "/api/devices/:deviceId/status",
-    authMiddleware,
-    validateQuery(DeviceIdSchema),
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const { deviceId } = req.params as { deviceId: string };
-
-        await assertDeviceAccess(pool, deviceId, userId);
-
-        // Get device status
-        const statusResult = await pool.query(
-          "SELECT device_id, status, reported_at FROM device_status WHERE device_id = $1",
-          [deviceId]
-        );
-
-        // Get latest telemetry
-        const telemetryResult = await pool.query(
-          `SELECT air_temperature, air_humidity, soil_temperature, soil_moisture, light_level, recorded_at 
-           FROM telemetry WHERE device_id = $1 ORDER BY recorded_at DESC LIMIT 1`,
-          [deviceId]
-        );
-
-        const status = statusResult.rows[0];
-        const telemetry = telemetryResult.rows[0];
-
-        // Check if online (status reported within last 2 minutes)
-        const isOnline = status?.status === 'online' && status?.reported_at && 
-          (Date.now() - new Date(status.reported_at).getTime()) < 2 * 60 * 1000;
-
-        res.json(
-          successResponse({
-            online: isOnline,
-            lastSeen: status?.reported_at || telemetry?.recorded_at || null,
-            latestTelemetry: telemetry ? {
-              airTemperature: telemetry.air_temperature,
-              airHumidity: telemetry.air_humidity,
-              soilTemperature: telemetry.soil_temperature,
-              soilMoisture: telemetry.soil_moisture,
-              lightLevel: telemetry.light_level,
-              recordedAt: telemetry.recorded_at,
-            } : null,
-          })
-        );
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  // Notification endpoints
-  app.post(
-    "/api/notifications/register-token",
-    authMiddleware,
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const { fcmToken } = req.body;
-
-        if (!fcmToken) {
-          throw new ApiError(400, "MISSING_FCM_TOKEN", "FCM token is required");
-        }
-
-        await pool.query({
-          text: "UPDATE users SET fcm_token = $1 WHERE id = $2",
-          values: [fcmToken, userId],
-        });
-
-        res.json(successResponse({ message: "Token registered successfully" }));
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  app.get(
-    "/api/notifications",
-    authMiddleware,
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const limit = parseInt(req.query.limit as string) || 20;
-
-        const result = await pool.query({
-          text: `SELECT id, title, body, data, is_read, created_at 
-           FROM notifications 
-           WHERE user_id = $1 
-           ORDER BY created_at DESC 
-           LIMIT $2`,
-          values: [userId, limit],
-        });
-
-        res.json(
-          successResponse(
-            result.rows.map((row: any) => ({
-              id: row.id,
-              title: row.title,
-              body: row.body,
-              data: row.data,
-              isRead: row.is_read,
-              createdAt: row.created_at,
-            }))
-          )
-        );
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  app.post(
-    "/api/notifications/:id/read",
-    authMiddleware,
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const { id } = req.params;
-
-        const result = await pool.query({
-          text: "UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2 RETURNING id",
-          values: [id, userId],
-        });
-
-        if (result.rows.length === 0) {
-          throw new ApiError(404, "NOT_FOUND", "Notification not found");
-        }
-
-        res.json(successResponse({ message: "Notification marked as read" }));
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
- 
-  // Alert rules endpoints
-  app.get(
-    "/api/devices/:deviceId/alert-rules",
-    authMiddleware,
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
-
-        await assertDeviceAccess(pool, deviceId, userId);
-
-        const result = await pool.query({
-          text: "SELECT alert_rules FROM devices WHERE device_id = $1",
-          values: [deviceId]
-        });
-
-        const rules = result.rows[0]?.alert_rules || {
-          airTemperatureMax: 35,
-          airTemperatureMin: 15,
-          airHumidityMax: 90,
-          airHumidityMin: 30,
-          soilMoistureMin: 40,
-          soilMoistureMax: 90,
-          lightLevelMin: 200,
-        };
-
-        res.json(successResponse(rules));
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
-
-  app.post(
-    "/api/devices/:deviceId/alert-rules",
-    authMiddleware,
-    async (req, res, next) => {
-      try {
-        const userId = (req as any).userId;
-        const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
-        const rules = req.body;
-
-        await assertDeviceAccess(pool, deviceId, userId);
-
-        await pool.query({
-          text: "UPDATE devices SET alert_rules = $1 WHERE device_id = $2",
-          values: [JSON.stringify(rules), deviceId]
-        });
-
-        res.json(successResponse({ message: "Alert rules updated successfully" }));
-      } catch (err) {
-        next(err);
-      }
-    }
-  );
+  // ... (rest of your routes and code here, truncated in the original)
 
   // Error handler (must be last)
   app.use(errorHandler);

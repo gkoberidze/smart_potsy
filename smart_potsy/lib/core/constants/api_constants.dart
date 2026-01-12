@@ -12,7 +12,7 @@ class ApiConstants {
   //    - 'https://yourdomain.com'
   // ===========================================
 
-  static const String baseUrl = 'http://192.168.1.8:3000'; // Android testing
+  static const String baseUrl = 'http://localhost:3000'; // Chrome/Web
   // static const String baseUrl = 'http://localhost:3000'; // Chrome/Web
   // static const String baseUrl = 'https://yourdomain.com'; // PRODUCTION
 
