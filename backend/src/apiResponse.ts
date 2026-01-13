@@ -1,16 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-  timestamp: string;
-}
-
 export class ApiError extends Error {
   constructor(
     public statusCode: number,
@@ -23,16 +12,26 @@ export class ApiError extends Error {
   }
 }
 
-import { ErrorRequestHandler } from "express";
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  timestamp: string;
+}
 
-export const errorHandler: ErrorRequestHandler = (
-  err,
-  req,
-  res,
-  next
+export const errorHandler = (
+  err: Error | ApiError,
+  req: Request,
+  res: Response,
+  next: NextFunction
 ) => {
   const timestamp = new Date().toISOString();
 
+  // Handle ApiError
   if (err instanceof ApiError) {
     const response: ApiResponse = {
       success: false,
@@ -47,6 +46,7 @@ export const errorHandler: ErrorRequestHandler = (
   }
 
   // Handle unexpected errors
+  console.error("Unexpected error:", err);
   const response: ApiResponse = {
     success: false,
     error: {
@@ -56,11 +56,10 @@ export const errorHandler: ErrorRequestHandler = (
     },
     timestamp,
   };
-
   res.status(500).json(response);
 };
 
-export const successResponse = <T>(data: T, statusCode: number = 200) => ({
+export const successResponse = <T = any>(data: T, statusCode = 200): ApiResponse<T> => ({
   success: true,
   data,
   timestamp: new Date().toISOString(),
