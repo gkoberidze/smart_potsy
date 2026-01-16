@@ -12,9 +12,10 @@ class ApiConstants {
   //    - 'https://yourdomain.com'
   // ===========================================
 
-  static const String baseUrl = 'http://localhost:3000'; // Chrome/Web
-  // static const String baseUrl = 'http://localhost:3000'; // Chrome/Web
-  // static const String baseUrl = 'https://yourdomain.com'; // PRODUCTION
+  // static const String baseUrl = 'http://localhost:3000'; // Chrome/Web (Development)
+  static const String baseUrl =
+      'http://161.35.219.50:3000'; // Production Server (nginx on port 80)
+  // static const String baseUrl = 'https://yourdomain.com'; // PRODUCTION (if you have SSL/domain)
 
   // Auth endpoints
   static const String register = '/api/auth/register';

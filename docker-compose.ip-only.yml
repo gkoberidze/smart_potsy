@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  backend:
+    build: .
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://greenhouse:${DB_PASSWORD}@db:5432/greenhouse
+      - MQTT_URL=mqtt://emqx:1883
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=24h
+      - BCRYPT_ROUNDS=12
+      - LOG_LEVEL=info
+    depends_on:
+      - db
+      - emqx
+    ports:
+      - "3000:3000"  # Expose backend directly
+    networks:
+      - greenhouse-net
+
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: greenhouse
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: greenhouse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - greenhouse-net
+
+  emqx:
+    image: emqx/emqx:5.6.0
+    restart: always
+    environment:
+      - EMQX_ALLOW_ANONYMOUS=true
+    ports:
+      - "1883:1883"  # MQTT port for ESP32
+      - "18083:18083"  # EMQX Dashboard (optional)
+    volumes:
+      - emqx_data:/opt/emqx/data
+    networks:
+      - greenhouse-net
+
+volumes:
+  postgres_data:
+  emqx_data:
+
+networks:
+  greenhouse-net:
+    driver: bridge

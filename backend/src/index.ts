@@ -21,7 +21,7 @@ const start = async () => {
   const mqttClient = startMqttIngestion(pool, logger);
   const app = createHttpServer(pool, logger);
 
-  const server = app.listen(config.port, () => {
+  const server = app.listen(config.port, '0.0.0.0', () => {
     logger.info({ port: config.port, env: config.env }, "HTTP server listening");
   });
 
