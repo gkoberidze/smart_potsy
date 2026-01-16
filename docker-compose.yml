@@ -35,17 +35,6 @@ services:
       - db
     env_file:
       - backend/.env
-    environment:
-      # Override for container networking
-      - DATABASE_URL=postgres://greenhouse:greenhouse@db:5432/greenhouse
-      - MQTT_URL=mqtt://emqx:1883
-      # Email settings
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_SECURE=false
-      - SMTP_USER=giokober@gmail.com
-      - SMTP_PASS=dlxk zuzt voos vibt
-      - SMTP_FROM=giokober@gmail.com
     ports:
       - "3000:3000"
     restart: unless-stopped
