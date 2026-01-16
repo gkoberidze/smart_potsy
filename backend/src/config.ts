@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+// Explicitly load .env from correct location in Docker
+dotenv.config({ path: __dirname + '/../.env' });
 
 const readEnv = (key: string, fallback?: string): string => {
   const value = process.env[key] ?? fallback;
@@ -14,13 +15,17 @@ export const config = {
   env: process.env.NODE_ENV || "development",
   port: parseInt(process.env.PORT || "3000", 10),
   databaseUrl: readEnv("DATABASE_URL"),
-  databaseSsl: process.env.DATABASE_SSL === "true" || process.env.NODE_ENV === "production",
+  databaseSsl:
+    process.env.DATABASE_SSL === "true" ||
+    process.env.NODE_ENV === "production",
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   mqtt: {
     url: readEnv("MQTT_URL", "mqtt://localhost:1883"),
     username: process.env.MQTT_USERNAME,
     password: process.env.MQTT_PASSWORD,
-    clientId: `greenhouse-backend-${Math.random().toString(16).slice(2, 8)}`,
+    clientId: `greenhouse-backend-${Math.random()
+      .toString(16)
+      .slice(2, 8)}`,
   },
   jwt: {
     secret: readEnv("JWT_SECRET"),
