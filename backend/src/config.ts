@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
+import path from "path";
 
-// Explicitly load .env from correct location in Docker
-dotenv.config({ path: __dirname + '/../.env' });
+// Load env from the project root from inside dist
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const readEnv = (key: string, fallback?: string): string => {
   const value = process.env[key] ?? fallback;
