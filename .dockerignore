@@ -1,11 +1,10 @@
 node_modules
 npm-debug.log
-Dockerfile
 .dockerignore
 .git
 .gitignore
 dist
-.env
 tmp
 backend/node_modules
 backend/dist
+.env
