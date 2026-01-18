@@ -6,7 +6,7 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://greenhouse:${DB_PASSWORD}@db:5432/greenhouse
+      - DATABASE_URL=postgresql://greenhouse:${DB_PASSWORD}@db:5432/greenhouse?sslmode=disable
       - MQTT_URL=mqtt://emqx:1883
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=24h
