@@ -7,13 +7,13 @@
 // ============================================================
 // 🔧 შეცვალეთ თქვენი WiFi და სერვერის პარამეტრებით!
 // ============================================================
-const char *WIFI_SSID = "YOUR_WIFI_NAME";         // WiFi სახელი
-const char *WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // WiFi პაროლი
+const char *WIFI_SSID = "Matrix Vision"; // WiFi სახელი
+const char *WIFI_PASSWORD = "14022007";  // WiFi პაროლი
 
 // 🌐 MQTT Broker - შეცვალეთ თქვენი სერვერით:
 // - ლოკალური ტესტირება: "192.168.x.x" (თქვენი კომპიუტერის IP)
 // - Production სერვერი: "yourdomain.com"
-const char *MQTT_BROKER = "YOUR_SERVER_IP";
+const char *MQTT_BROKER = "161.35.219.50";
 const uint16_t MQTT_PORT = 1883;
 const char *MQTT_USERNAME = ""; // არასავალდებულო
 const char *MQTT_PASSWORD = ""; // არასავალდებულო
