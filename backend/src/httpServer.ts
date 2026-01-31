@@ -337,7 +337,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
       const userDevices = await getUserDevices(userId);
 
       if (userDevices.length === 0) {
-        res.json(successResponse({ devices: [] }));
+        res.json(successResponse([]));
         return;
       }
 
@@ -355,7 +355,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
         [...userDevices, limit]
       );
 
-      res.json(successResponse({ devices: rows.map(toDeviceResponse) }));
+      res.json(successResponse(rows.map(toDeviceResponse)));
     } catch (err) {
       next(err);
     }

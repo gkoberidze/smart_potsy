@@ -11,8 +11,17 @@ class DeviceService {
   Future<List<Device>> getDevices() async {
     final response = await _apiService.get(ApiConstants.devices);
     if (response.success && response.data != null) {
-      final List<dynamic> devicesJson = response.data;
-      return devicesJson.map((json) => Device.fromJson(json)).toList();
+      try {
+        // Backend now returns array directly
+        if (response.data is List) {
+          final List<dynamic> devicesJson = response.data as List<dynamic>;
+          return devicesJson
+              .map((json) => Device.fromJson(json as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        print('Error parsing devices: $e');
+      }
     }
     return [];
   }
@@ -52,8 +61,17 @@ class DeviceService {
       '${ApiConstants.deviceTelemetry(deviceId)}?limit=$limit',
     );
     if (response.success && response.data != null) {
-      final List<dynamic> telemetryJson = response.data;
-      return telemetryJson.map((json) => Telemetry.fromJson(json)).toList();
+      try {
+        // Backend returns array directly
+        if (response.data is List) {
+          final List<dynamic> telemetryJson = response.data as List<dynamic>;
+          return telemetryJson
+              .map((json) => Telemetry.fromJson(json as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        print('Error parsing telemetry: $e');
+      }
     }
     return [];
   }
