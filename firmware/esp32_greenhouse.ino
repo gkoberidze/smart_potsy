@@ -47,15 +47,25 @@ void connectWiFi()
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED)
+  Serial.print("📶 Connecting to WiFi: ");
+  Serial.println(WIFI_SSID);
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20)
   {
     delay(500);
     Serial.print(".");
+    attempts++;
   }
 
-  Serial.print("\nWiFi connected. IP: ");
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.println("\n✅ WiFi connected! IP: ");
+    Serial.println(WiFi.localIP());
+  }
+  else
+  {
+    Serial.println("\n❌ WiFi connection FAILED!");
+  }
 }
 
 void publishStatus(const char *status)
@@ -69,6 +79,12 @@ unsigned int mqttRetryCount = 0;
 void connectMqtt()
 {
   mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("❌ WiFi not connected, cannot connect to MQTT");
+    return;
+  }
 
   if (mqttClient.connected())
   {
@@ -86,7 +102,7 @@ void connectMqtt()
   lastMqttRetry = now;
 
   String clientId = String("greenhouse-") + DEVICE_KEY;
-  Serial.printf("[%lu] Connecting to MQTT as %s (attempt %u)...\n", now, clientId.c_str(), mqttRetryCount + 1);
+  Serial.printf("🔌 Connecting to MQTT %s:%u as %s (attempt %u)...\n", MQTT_BROKER, MQTT_PORT, clientId.c_str(), mqttRetryCount + 1);
 
   bool connected = mqttClient.connect(
       clientId.c_str(),
@@ -96,7 +112,7 @@ void connectMqtt()
 
   if (connected)
   {
-    Serial.println("MQTT connected successfully");
+    Serial.println("✅ MQTT connected successfully!");
     mqttRetryCount = 0;
     publishStatus("online");
   }
