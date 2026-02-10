@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/device_service.dart';
 import '../../../core/models/device.dart';
+import '../../../core/models/telemetry.dart';
 import '../../../core/theme/app_colors.dart';
 
 class DeviceDetailScreen extends StatefulWidget {
@@ -16,7 +17,7 @@ class DeviceDetailScreen extends StatefulWidget {
 
 class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   late DeviceService _deviceService;
-  DeviceStatus? _status;
+  List<Telemetry> _telemetryList = [];
   bool _isLoading = true;
 
   @override
@@ -30,14 +31,16 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final status = await _deviceService.getDeviceStatus(
+      final telemetry = await _deviceService.getDeviceTelemetry(
         widget.device.deviceId,
+        limit: 100,
       );
       setState(() {
-        _status = status;
+        _telemetryList = telemetry;
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading telemetry: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -170,37 +173,50 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   }
 
   Widget _buildSensorList() {
-    final latest = _status?.latestTelemetry;
+    // Get the latest telemetry record, or use the device's last telemetry
+    final Telemetry? latest =
+        _telemetryList.isNotEmpty
+            ? _telemetryList.first
+            : (widget.device.lastTelemetry != null
+                ? Telemetry(
+                  airTemperature: widget.device.lastTelemetry!.airTemperature,
+                  airHumidity: widget.device.lastTelemetry!.airHumidity,
+                  soilTemperature: widget.device.lastTelemetry!.soilTemperature,
+                  soilMoisture: widget.device.lastTelemetry!.soilMoisture,
+                  lightLevel: widget.device.lastTelemetry!.lightLevel,
+                  recordedAt: widget.device.lastTelemetry!.recordedAt,
+                )
+                : null);
 
     return Column(
       children: [
         _buildSensorRow(
           icon: _buildTemperatureIcon(),
-          value: latest?.airTemperature?.toStringAsFixed(0) ?? '--',
+          value: latest?.airTemperature?.toStringAsFixed(1) ?? '--',
           unit: '°C',
         ),
         const SizedBox(height: 24),
         _buildSensorRow(
           icon: _buildSoilTempIcon(),
-          value: latest?.soilTemperature?.toStringAsFixed(0) ?? '--',
+          value: latest?.soilTemperature?.toStringAsFixed(1) ?? '--',
           unit: '°C',
         ),
         const SizedBox(height: 24),
         _buildSensorRow(
           icon: _buildHumidityIcon(),
-          value: latest?.airHumidity?.toStringAsFixed(0) ?? '--',
+          value: latest?.airHumidity?.toStringAsFixed(1) ?? '--',
           unit: '%',
         ),
         const SizedBox(height: 24),
         _buildSensorRow(
           icon: _buildSoilMoistureIcon(),
-          value: latest?.soilMoisture?.toStringAsFixed(0) ?? '--',
+          value: latest?.soilMoisture?.toStringAsFixed(1) ?? '--',
           unit: '%',
         ),
         const SizedBox(height: 24),
         _buildSensorRow(
           icon: _buildLightIcon(),
-          value: latest?.lightLevel?.toString() ?? '--',
+          value: latest?.lightLevel?.toStringAsFixed(0) ?? '--',
           unit: 'lux',
         ),
         const SizedBox(height: 24),
@@ -209,8 +225,26 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           value: '90', // TODO: Add battery level to telemetry
           unit: '%',
         ),
+        if (latest?.recordedAt != null) ...[
+          const SizedBox(height: 32),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'ბოლო განახლება: ${_formatDateTime(latest!.recordedAt!)}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildSensorRow({
