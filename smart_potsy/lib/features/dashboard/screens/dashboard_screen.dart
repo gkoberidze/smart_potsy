@@ -625,12 +625,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDeviceCard(Device device) {
-    // Check online status - device is online if has recent data
-    final isOnline =
-        device.statusReportedAt != null &&
-        DateTime.now().difference(device.statusReportedAt!).inMinutes < 5;
-
+    // Check online status - device is online if has recent telemetry data (within 2 minutes)
     final telemetry = device.lastTelemetry;
+    final lastDataTime = device.statusReportedAt ?? telemetry?.recordedAt;
+    final isOnline =
+        lastDataTime != null &&
+        DateTime.now().difference(lastDataTime).inMinutes < 2;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

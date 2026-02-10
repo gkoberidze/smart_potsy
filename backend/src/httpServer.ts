@@ -331,7 +331,6 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
 
   app.get("/api/devices", authMiddleware, async (req, res, next) => {
     const userId = (req as any).userId;
-    const limit = Math.min(getNumber(req.query.limit, 100), 500);
 
     try {
       const userDevices = await getUserDevices(userId);
@@ -342,17 +341,25 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
       }
 
       const placeholders = userDevices.map((_, i) => `$${i + 1}`).join(",");
+      // Start from devices table to include devices without telemetry
+      // Use a subquery to get latest telemetry for each device
       const { rows } = await pool.query(
-        `SELECT DISTINCT ON (t.device_id)
-          t.device_id, t.air_temperature, t.air_humidity, t.soil_temperature,
-          t.soil_moisture, t.light_level, t.recorded_at,
+        `SELECT 
+          d.device_id,
+          lt.air_temperature, lt.air_humidity, lt.soil_temperature,
+          lt.soil_moisture, lt.light_level, lt.recorded_at,
           s.status, s.reported_at as status_reported_at
-        FROM telemetry t
-        LEFT JOIN device_status s ON s.device_id = t.device_id
-        WHERE t.device_id IN (${placeholders})
-        ORDER BY t.device_id, t.recorded_at DESC
-        LIMIT $${userDevices.length + 1}`,
-        [...userDevices, limit]
+        FROM devices d
+        LEFT JOIN LATERAL (
+          SELECT air_temperature, air_humidity, soil_temperature, soil_moisture, light_level, recorded_at
+          FROM telemetry 
+          WHERE device_id = d.device_id
+          ORDER BY recorded_at DESC
+          LIMIT 1
+        ) lt ON true
+        LEFT JOIN device_status s ON s.device_id = d.device_id
+        WHERE d.device_id IN (${placeholders})`,
+        userDevices
       );
 
       res.json(successResponse(rows.map(toDeviceResponse)));

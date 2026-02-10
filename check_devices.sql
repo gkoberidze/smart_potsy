@@ -1,0 +1,1 @@
+﻿SELECT device_id, device_key, user_id FROM devices;
