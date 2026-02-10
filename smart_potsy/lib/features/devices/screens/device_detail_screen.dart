@@ -143,10 +143,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                 _infoRow('სტატუსი:', isOnline ? 'ონლაინ ✅' : 'ოფლაინ ❌'),
                 if (lastSeen != null)
                   _infoRow('ბოლო განახლება:', _formatDateTime(lastSeen)),
-                _infoRow(
-                  'დამატებულია:',
-                  _formatDateTime(widget.device.createdAt),
-                ),
               ],
             ),
             actions: [

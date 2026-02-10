@@ -553,18 +553,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _isLoading = false;
           });
 
-          // Then refresh from server to get updated data
-          await Future.delayed(const Duration(milliseconds: 500));
-          await _loadDevices();
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('მოწყობилობა "${device.deviceId}" დამატებულია ✓'),
+              backgroundColor: const Color(0xFF2E7D32),
+              duration: const Duration(seconds: 3),
+            ),
+          );
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('მოწყობილობა "${device.deviceId}" დამატებულია ✓'),
-                backgroundColor: const Color(0xFF2E7D32),
-                duration: const Duration(seconds: 3),
-              ),
-            );
+          // Refresh data in background (don't show loading spinner)
+          await Future.delayed(const Duration(seconds: 1));
+          try {
+            final updatedDevices = await _deviceService.getDevices();
+            if (mounted && updatedDevices.isNotEmpty) {
+              setState(() {
+                _devices = updatedDevices;
+              });
+            }
+          } catch (e) {
+            // Silently fail - keep the device we already added
+            print('Background refresh failed: $e');
           }
         } else {
           setState(() => _isLoading = false);
