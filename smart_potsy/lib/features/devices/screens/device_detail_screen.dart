@@ -130,8 +130,8 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   }
 
   void _showInfoDialog() {
-    final isOnline = _status?.online ?? false;
-    final lastSeen = _status?.lastSeen;
+    final isOnline = _telemetryList.isNotEmpty;
+    final lastUpdate = widget.device.lastTelemetry?.recordedAt;
 
     showDialog(
       context: context,
@@ -144,8 +144,8 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
               children: [
                 _infoRow('ID:', widget.device.deviceId),
                 _infoRow('სტატუსი:', isOnline ? 'ონლაინ ✅' : 'ოფლაინ ❌'),
-                if (lastSeen != null)
-                  _infoRow('ბოლო განახლება:', _formatDateTime(lastSeen)),
+                if (lastUpdate != null)
+                  _infoRow('ბოლო განახლება:', _formatDateTime(lastUpdate)),
               ],
             ),
             actions: [
@@ -327,9 +327,5 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       size: 32,
       color: Colors.black54,
     );
-  }
-
-  String _formatDateTime(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
