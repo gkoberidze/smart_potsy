@@ -543,29 +543,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _registerDevice(String deviceId) async {
     setState(() => _isLoading = true);
-    final device = await _deviceService.registerDevice(deviceId);
-    if (device != null) {
-      await _loadDevices();
+    try {
+      final device = await _deviceService.registerDevice(deviceId);
       if (mounted) {
+        if (device != null) {
+          // Add device to list immediately for instant feedback
+          setState(() {
+            _devices.add(device);
+            _isLoading = false;
+          });
+
+          // Then refresh from server to get updated data
+          await Future.delayed(const Duration(milliseconds: 500));
+          await _loadDevices();
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('მოწყობილობა "${device.deviceId}" დამატებულია ✓'),
+                backgroundColor: const Color(0xFF2E7D32),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('დამატება ვერ მოხერხდა'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('მოწყობილობა "${device.deviceId}" დამატებულია'),
-            backgroundColor: const Color(0xFF2E7D32),
-            action: SnackBarAction(
-              label: 'ნახვა',
-              textColor: Colors.white,
-              onPressed: () => _navigateToDeviceDetail(device),
-            ),
-          ),
-        );
-      }
-    } else {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('დამატება ვერ მოხერხდა'),
+            content: Text('შეცდომა: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -573,10 +592,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDeviceCard(Device device) {
-    // Check online status - device is online if last seen within 5 minutes
+    // Check online status - device is online if has recent data
     final isOnline =
-        device.lastSeen != null &&
-        DateTime.now().difference(device.lastSeen!).inMinutes < 5;
+        device.statusReportedAt != null &&
+        DateTime.now().difference(device.statusReportedAt!).inMinutes < 5;
+
+    final telemetry = device.lastTelemetry;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -598,71 +619,142 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: () => _navigateToDeviceDetail(device),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Device Icon
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.memory,
-                    color: Color(0xFF2E7D32),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Device Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        device.deviceId,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                // Top row: Icon, Device ID, Status, Delete
+                Row(
+                  children: [
+                    // Device Icon
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2E7D32).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                      child: const Icon(
+                        Icons.memory,
+                        color: Color(0xFF2E7D32),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Device Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: isOnline ? Colors.green : Colors.grey,
-                              shape: BoxShape.circle,
+                          Text(
+                            device.deviceId,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isOnline ? 'ონლაინ' : 'ოფლაინ',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isOnline ? Colors.green : Colors.grey,
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: isOnline ? Colors.green : Colors.grey,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isOnline ? 'ონლაინ' : 'ოფლაინ',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isOnline ? Colors.green : Colors.grey,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
+                    // Delete Button
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => _deleteDevice(device),
+                    ),
+                    const Icon(Icons.chevron_right, color: Colors.grey),
+                  ],
+                ),
+                // Telemetry Data (if available)
+                if (telemetry != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2E7D32).withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildTelemetryItem(
+                            '🌡️',
+                            'ჰ/ტემპ',
+                            telemetry.airTemperature,
+                            '°C',
+                          ),
+                          _buildTelemetryItem(
+                            '💧',
+                            'ჰ/რ.',
+                            telemetry.airHumidity,
+                            '%',
+                          ),
+                          _buildTelemetryItem(
+                            '🌱',
+                            'მ/ტემპ',
+                            telemetry.soilTemperature,
+                            '°C',
+                          ),
+                          _buildTelemetryItem(
+                            '💦',
+                            'მ/რ.',
+                            telemetry.soilMoisture,
+                            '%',
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                // Delete Button
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _deleteDevice(device),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.grey),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTelemetryItem(
+    String emoji,
+    String label,
+    double? value,
+    String unit,
+  ) {
+    return Column(
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 4),
+        Text(
+          value != null ? '${value.toStringAsFixed(1)}$unit' : 'N/A',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
     );
   }
 

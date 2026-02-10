@@ -31,7 +31,7 @@ const char *MQTT_PASSWORD = ""; // არასავალდებულო
 // 4. შეიყვანეთ ეს კოდი რომ დაარეგისტრიროთ მოწყობილობა
 // 5. ატვირთეთ ეს კოდი ESP32-ზე
 // ============================================================
-const char *DEVICE_KEY = "GH-4K7N-WF48"; // <-- Updated!
+const char *DEVICE_KEY = "ESP32_001"; // <-- Updated!
 
 Preferences preferences;
 WiFiClient wifiClient;
