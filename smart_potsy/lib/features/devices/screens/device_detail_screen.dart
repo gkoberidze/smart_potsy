@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/api_service.dart';
@@ -19,12 +20,38 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   late DeviceService _deviceService;
   List<Telemetry> _telemetryList = [];
   bool _isLoading = true;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _deviceService = DeviceService(context.read<ApiService>());
     _loadData();
+    // Auto-refresh every 10 seconds for real-time updates
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _silentRefresh(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _silentRefresh() async {
+    try {
+      final telemetry = await _deviceService.getDeviceTelemetry(
+        widget.device.deviceId,
+        limit: 100,
+      );
+      if (mounted) {
+        setState(() => _telemetryList = telemetry);
+      }
+    } catch (e) {
+      // Silent fail for background refresh
+    }
   }
 
   Future<void> _loadData() async {
