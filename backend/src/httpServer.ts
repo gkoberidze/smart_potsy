@@ -368,43 +368,40 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
   };
 
   const RegisterDeviceSchema = z.object({
-    deviceId: z.string().regex(/^GH-[A-Z0-9]{4}-[A-Z0-9]{4}$/).optional(),
+    deviceKey: z.string().regex(/^GH-[A-Z0-9]{4}-[A-Z0-9]{4}$/).optional(),
   });
 
   app.post("/api/devices", authMiddleware, validateBody(RegisterDeviceSchema), async (req, res, next) => {
     const userId = (req as any).userId;
-    let { deviceId } = req.body;
+    const { deviceKey } = req.body;
 
-    if (!deviceId) {
-      deviceId = generateDeviceKey();
-      let attempts = 0;
-      while (attempts < 10) {
-        const existing = await pool.query({ text: "SELECT 1 FROM devices WHERE device_id = $1", values: [deviceId] });
-        if (existing.rows.length === 0) break;
-        deviceId = generateDeviceKey();
-        attempts++;
-      }
+    if (!deviceKey) {
+      throw new ApiError(400, "DEVICE_KEY_REQUIRED", "Device key is required. Enter the key from your device or scan QR code.");
     }
 
     try {
+      // Look up device by its secret key
       const existingDevice = await pool.query({
-        text: "SELECT user_id FROM devices WHERE device_id = $1",
-        values: [deviceId]
+        text: "SELECT device_id, user_id FROM devices WHERE device_key = $1",
+        values: [deviceKey]
       });
 
-      if (existingDevice.rows.length > 0) {
-        const existingUserId = existingDevice.rows[0].user_id;
-        if (existingUserId !== 1 && existingUserId !== userId) {
-          throw new ApiError(409, "DEVICE_TAKEN", "Device is already registered to another user");
-        }
-        await pool.query({ text: "UPDATE devices SET user_id = $1 WHERE device_id = $2", values: [userId, deviceId] });
-      } else {
-        await createDeviceForUser(deviceId, userId);
+      if (existingDevice.rows.length === 0) {
+        throw new ApiError(404, "DEVICE_NOT_FOUND", "Device not found. Make sure the key is correct and the device has sent data at least once.");
       }
 
+      const device = existingDevice.rows[0];
+      const existingUserId = device.user_id;
+      
+      if (existingUserId !== 1 && existingUserId !== userId) {
+        throw new ApiError(409, "DEVICE_TAKEN", "Device is already registered to another user");
+      }
+      
+      await pool.query({ text: "UPDATE devices SET user_id = $1 WHERE device_key = $2", values: [userId, deviceKey] });
+
       const deviceResult = await pool.query({
-        text: "SELECT device_id, user_id, created_at FROM devices WHERE device_id = $1",
-        values: [deviceId]
+        text: "SELECT device_id, device_key, user_id, created_at FROM devices WHERE device_key = $1",
+        values: [deviceKey]
       });
 
       res.status(201).json(successResponse(deviceResult.rows[0]));

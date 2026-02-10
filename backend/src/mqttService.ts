@@ -7,6 +7,7 @@ import { createDeviceForUser, verifyDeviceExists } from "./db";
 
 const telemetrySchema = z.object({
   deviceId: z.string().regex(/^(ESP32_\d{3}|GH-[A-Z0-9]{4}-[A-Z0-9]{4})$/),
+  deviceKey: z.string().regex(/^GH-[A-Z0-9]{4}-[A-Z0-9]{4}$/).optional(),
   airTemperature: z.number(),
   airHumidity: z.number().min(0).max(100),
   soilTemperature: z.number(),
@@ -63,7 +64,13 @@ const handleTelemetry = async (pool: Pool, logger: Logger, deviceId: string, pay
     // Verify device exists or create it for system user
     const exists = await verifyDeviceExists(deviceId);
     if (!exists) {
-      await createDeviceForUser(deviceId, 1); // System user
+      await createDeviceForUser(deviceId, 1, telemetry.deviceKey); // System user with optional key
+    } else if (telemetry.deviceKey) {
+      // Update device_key if not set
+      await pool.query(
+        "UPDATE devices SET device_key = $1 WHERE device_id = $2 AND device_key IS NULL",
+        [telemetry.deviceKey, deviceId]
+      );
     }
 
     await pool.query(

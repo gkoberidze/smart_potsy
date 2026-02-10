@@ -90,12 +90,28 @@ export const updatePassword = async (
 
 export const createDeviceForUser = async (
   deviceId: string,
-  userId: number
+  userId: number,
+  deviceKey?: string
 ): Promise<void> => {
-  await pool.query(
-    "INSERT INTO devices (device_id, user_id) VALUES ($1, $2) ON CONFLICT (device_id) DO NOTHING",
-    [deviceId, userId]
+  if (deviceKey) {
+    await pool.query(
+      "INSERT INTO devices (device_id, user_id, device_key) VALUES ($1, $2, $3) ON CONFLICT (device_id) DO UPDATE SET device_key = EXCLUDED.device_key WHERE devices.device_key IS NULL",
+      [deviceId, userId, deviceKey]
+    );
+  } else {
+    await pool.query(
+      "INSERT INTO devices (device_id, user_id) VALUES ($1, $2) ON CONFLICT (device_id) DO NOTHING",
+      [deviceId, userId]
+    );
+  }
+};
+
+export const findDeviceByKey = async (deviceKey: string): Promise<{ device_id: string; user_id: number } | null> => {
+  const result = await pool.query(
+    "SELECT device_id, user_id FROM devices WHERE device_key = $1",
+    [deviceKey]
   );
+  return result.rows[0] || null;
 };
 
 export const getUserDevices = async (userId: number): Promise<string[]> => {

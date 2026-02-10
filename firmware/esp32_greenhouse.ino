@@ -31,7 +31,8 @@ const char *MQTT_PASSWORD = ""; // არასავალდებულო
 // 4. შეიყვანეთ ეს კოდი რომ დაარეგისტრიროთ მოწყობილობა
 // 5. ატვირთეთ ეს კოდი ESP32-ზე
 // ============================================================
-const char *DEVICE_KEY = "GH-4K7N-WF48"; // <-- Your secure device key
+const char *DEVICE_ID = "ESP32_001";     // <-- Device identifier (visible in app)
+const char *DEVICE_KEY = "GH-4K7N-WF48"; // <-- Secret key for registration (QR/manual entry)
 
 Preferences preferences;
 WiFiClient wifiClient;
@@ -39,8 +40,8 @@ PubSubClient mqttClient(wifiClient);
 const unsigned long TELEMETRY_INTERVAL_MS = 60UL * 1000UL; // 1 წუთი
 unsigned long lastTelemetryMs = 0;
 
-String telemetryTopic() { return String("greenhouse/") + DEVICE_KEY + "/telemetry"; }
-String statusTopic() { return String("greenhouse/") + DEVICE_KEY + "/status"; }
+String telemetryTopic() { return String("greenhouse/") + DEVICE_ID + "/telemetry"; }
+String statusTopic() { return String("greenhouse/") + DEVICE_ID + "/status"; }
 
 void connectWiFi()
 {
@@ -135,10 +136,11 @@ float readLightLevel() { return 700 + random(-50, 50); }
 
 void publishTelemetry()
 {
-  char payload[256];
+  char payload[300];
   snprintf(payload, sizeof(payload),
-           "{\"deviceId\":\"%s\",\"airTemperature\":%.2f,\"airHumidity\":%.2f,"
+           "{\"deviceId\":\"%s\",\"deviceKey\":\"%s\",\"airTemperature\":%.2f,\"airHumidity\":%.2f,"
            "\"soilTemperature\":%.2f,\"soilMoisture\":%.2f,\"lightLevel\":%.2f}",
+           DEVICE_ID,
            DEVICE_KEY,
            readAirTemperatureC(),
            readAirHumidityPct(),
@@ -164,9 +166,10 @@ void printDeviceInfo()
   Serial.println("╔════════════════════════════════════════════════════╗");
   Serial.println("║       🌱 GREENHOUSE IoT DEVICE 🌱                  ║");
   Serial.println("╠════════════════════════════════════════════════════╣");
+  Serial.printf("║  Device ID:  %-37s ║\n", DEVICE_ID);
   Serial.printf("║  Device Key: %-37s ║\n", DEVICE_KEY);
   Serial.println("╠════════════════════════════════════════════════════╣");
-  Serial.println("║  ამ კოდით დაამატეთ მოწყობილობა აპლიკაციაში!       ║");
+  Serial.println("║  შეიყვანეთ Device Key აპლიკაციაში!                 ║");
   Serial.println("╚════════════════════════════════════════════════════╝");
   Serial.println();
 }

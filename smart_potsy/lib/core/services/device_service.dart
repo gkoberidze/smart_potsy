@@ -26,14 +26,11 @@ class DeviceService {
     return [];
   }
 
-  Future<Device?> registerDevice(String? deviceId) async {
-    final body =
-        deviceId != null && deviceId.isNotEmpty
-            ? {'deviceId': deviceId}
-            : <
-              String,
-              dynamic
-            >{}; // Empty body = generate new device key on server
+  Future<Device?> registerDevice(String? deviceKey) async {
+    if (deviceKey == null || deviceKey.isEmpty) {
+      return null; // Device key is required
+    }
+    final body = {'deviceKey': deviceKey};
     final response = await _apiService.post(ApiConstants.devices, body);
     if (response.success && response.data != null) {
       return Device.fromJson(response.data);
