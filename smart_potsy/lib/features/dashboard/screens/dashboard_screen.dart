@@ -5,7 +5,7 @@ import '../../../core/services/api_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/device_service.dart';
 import '../../../core/models/device.dart';
-import '../../auth/screens/login_screen.dart';
+import '../../auth/screens/auth_screen.dart';
 import '../../devices/screens/device_detail_screen.dart';
 import '../../devices/screens/qr_scanner_screen.dart';
 import '../../settings/screens/terms_and_conditions_screen.dart';
@@ -882,7 +882,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (confirm == true && mounted) {
       await context.read<AuthService>().logout();
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
         (route) => false,
       );
     }

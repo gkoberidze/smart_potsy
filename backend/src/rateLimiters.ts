@@ -34,11 +34,4 @@ export const resetLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// MQTT webhook endpoints
-export const mqttLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 300, // Allow high frequency from MQTT broker
-  handler: jsonHandler("Too many MQTT requests."),
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+

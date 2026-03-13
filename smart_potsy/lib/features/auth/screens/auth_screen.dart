@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
@@ -18,7 +18,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // Form controllers
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -35,12 +34,12 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _loadSavedCredentials() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString('saved_email');
-    final savedPassword = prefs.getString('saved_password');
-    final remember = prefs.getBool('remember_me') ?? false;
+    const storage = FlutterSecureStorage();
+    final savedEmail = await storage.read(key: 'saved_email');
+    final savedPassword = await storage.read(key: 'saved_password');
+    final remember = await storage.read(key: 'remember_me');
 
-    if (remember && savedEmail != null && savedPassword != null) {
+    if (remember == 'true' && savedEmail != null && savedPassword != null) {
       setState(() {
         _emailController.text = savedEmail;
         _passwordController.text = savedPassword;
@@ -51,21 +50,26 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _saveCredentials() async {
-    final prefs = await SharedPreferences.getInstance();
+    const storage = FlutterSecureStorage();
     if (_rememberMe) {
-      await prefs.setString('saved_email', _emailController.text.trim());
-      await prefs.setString('saved_password', _passwordController.text);
-      await prefs.setBool('remember_me', true);
+      await storage.write(
+        key: 'saved_email',
+        value: _emailController.text.trim(),
+      );
+      await storage.write(
+        key: 'saved_password',
+        value: _passwordController.text,
+      );
+      await storage.write(key: 'remember_me', value: 'true');
     } else {
-      await prefs.remove('saved_email');
-      await prefs.remove('saved_password');
-      await prefs.setBool('remember_me', false);
+      await storage.delete(key: 'saved_email');
+      await storage.delete(key: 'saved_password');
+      await storage.write(key: 'remember_me', value: 'false');
     }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -314,21 +318,6 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildFormFields() {
     return Column(
       children: [
-        // Name field (only for registration)
-        if (!_isLoginTab) ...[
-          _buildTextField(
-            controller: _nameController,
-            hint: 'სახელი',
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'გთხოვთ შეიყვანოთ სახელი';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-        ],
-
         // Email/Phone field
         _buildTextField(
           controller: _emailController,
@@ -364,8 +353,8 @@ class _AuthScreenState extends State<AuthScreen> {
             if (value == null || value.isEmpty) {
               return 'გთხოვთ შეიყვანოთ პაროლი';
             }
-            if (value.length < 6) {
-              return 'პაროლი უნდა იყოს მინიმუმ 6 სიმბოლო';
+            if (value.length < 8) {
+              return 'პაროლი უნდა იყოს მინიმუმ 8 სიმბოლო';
             }
             return null;
           },

@@ -37,4 +37,5 @@ export const config = {
     rounds: parseInt(process.env.BCRYPT_ROUNDS || "12", 10),
   },
   logLevel: process.env.LOG_LEVEL || "info",
+  adminApiKey: process.env.ADMIN_API_KEY || "",
 };

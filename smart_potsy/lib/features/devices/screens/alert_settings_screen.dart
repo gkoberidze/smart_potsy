@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/models/device.dart';
 
@@ -29,7 +30,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _notificationService = context.read<NotificationService>();
+    _notificationService = NotificationService(context.read<ApiService>());
     _loadAlertRules();
   }
 
@@ -187,7 +188,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            _buildTextField(_lightMinController, 'მინ (lux)'),
+            _buildTextField(_lightMinController, 'მინ (%)'),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,

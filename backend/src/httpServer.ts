@@ -15,6 +15,7 @@ import {
   verifyFacebookToken,
 } from "./authService";
 import {
+  bulkInsertDeviceKeys,
   createDeviceForUser,
   createUser,
   createOAuthUser,
@@ -266,7 +267,12 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
 
   const ResetPasswordSchema = z.object({
     token: z.string(),
-    password: z.string().min(6),
+    password: z.string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
   });
 
   app.post("/api/auth/reset-password", validateBody(ResetPasswordSchema), async (req, res, next) => {
@@ -368,12 +374,6 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
     }
   });
 
-  const generateDeviceKey = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const part = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    return `GH-${part()}-${part()}`;
-  };
-
   const RegisterDeviceSchema = z.object({
     deviceKey: z.string().regex(/^GH-[A-Z0-9]{4}-[A-Z0-9]{4}$/).optional(),
   });
@@ -394,7 +394,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
       });
 
       if (existingDevice.rows.length === 0) {
-        throw new ApiError(404, "DEVICE_NOT_FOUND", "Device not found. Make sure the key is correct and the device has sent data at least once.");
+        throw new ApiError(404, "DEVICE_NOT_FOUND", "Device not found. Make sure the key is correct.");
       }
 
       const device = existingDevice.rows[0];
@@ -412,6 +412,30 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
       });
 
       res.status(201).json(successResponse(deviceResult.rows[0]));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Admin endpoint — protected by X-Admin-Key header matching ADMIN_API_KEY env var
+  app.post("/api/admin/devices/generate", async (req, res, next) => {
+    try {
+      const adminKey = config.adminApiKey;
+      if (!adminKey) {
+        throw new ApiError(503, "ADMIN_DISABLED", "Admin API key not configured");
+      }
+      const providedKey = req.headers['x-admin-key'];
+      if (providedKey !== adminKey) {
+        throw new ApiError(401, "UNAUTHORIZED", "Invalid admin key");
+      }
+
+      const GenerateSchema = z.object({
+        count: z.number().int().min(1).max(1000),
+      });
+      const { count } = GenerateSchema.parse(req.body);
+
+      const keys = await bulkInsertDeviceKeys(count);
+      res.status(201).json(successResponse({ count: keys.length, keys }));
     } catch (err) {
       next(err);
     }

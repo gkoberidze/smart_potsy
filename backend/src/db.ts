@@ -106,14 +106,6 @@ export const createDeviceForUser = async (
   }
 };
 
-export const findDeviceByKey = async (deviceKey: string): Promise<{ device_id: string; user_id: number } | null> => {
-  const result = await pool.query(
-    "SELECT device_id, user_id FROM devices WHERE device_key = $1",
-    [deviceKey]
-  );
-  return result.rows[0] || null;
-};
-
 export const getUserDevices = async (userId: number): Promise<string[]> => {
   const result = await pool.query(
     "SELECT device_id FROM devices WHERE user_id = $1",
@@ -122,29 +114,36 @@ export const getUserDevices = async (userId: number): Promise<string[]> => {
   return result.rows.map((row) => row.device_id);
 };
 
-export const verifyDeviceOwnership = async (
-  deviceId: string,
-  userId: number
-): Promise<boolean> => {
-  const result = await pool.query(
-    "SELECT 1 FROM devices WHERE device_id = $1 AND user_id = $2",
-    [deviceId, userId]
-  );
-  return result.rows.length > 0;
-};
-
-// Get all users (admin only)
-export const getAllUsers = async (): Promise<Pick<User, "id" | "email" | "created_at">[]> => {
-  const result = await pool.query(
-    "SELECT id, email, created_at FROM users ORDER BY created_at DESC"
-  );
-  return result.rows;
-};
-
 export const verifyDeviceExists = async (deviceId: string): Promise<boolean> => {
   const result = await pool.query(
     "SELECT 1 FROM devices WHERE device_id = $1",
     [deviceId]
   );
   return result.rows.length > 0;
+};
+
+const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const generateKey = (): string => {
+  const part = () => Array.from({ length: 4 }, () => KEY_CHARS[Math.floor(Math.random() * KEY_CHARS.length)]).join('');
+  return `GH-${part()}-${part()}`;
+};
+
+export const bulkInsertDeviceKeys = async (count: number): Promise<string[]> => {
+  const inserted: string[] = [];
+  let attempts = 0;
+  const maxAttempts = count * 3;
+
+  while (inserted.length < count && attempts < maxAttempts) {
+    attempts++;
+    const key = generateKey();
+    const result = await pool.query(
+      "INSERT INTO devices (device_id, user_id, device_key) VALUES ($1, 1, $2) ON CONFLICT DO NOTHING RETURNING device_key",
+      [key, key]
+    );
+    if (result.rows.length > 0) {
+      inserted.push(key);
+    }
+  }
+
+  return inserted;
 };

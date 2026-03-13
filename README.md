@@ -1,106 +1,139 @@
-# Greenhouse IoT - ESP32 → EMQX → Node.js → PostgreSQL
+# Smart Potsy - IoT Greenhouse Monitoring
+
+Smart plant monitoring system: ESP32 sensors → MQTT → Node.js backend → PostgreSQL, with a Flutter mobile app.
+
+## Architecture
+
+```
+ESP32 Sensors → EMQX (MQTT) → Node.js Backend → PostgreSQL
+                                     ↑
+                              Flutter App (HTTP)
+```
+
+## Project Structure
+
+```
+backend/          Node.js + TypeScript API server
+firmware/         ESP32 Arduino sketch
+smart_potsy/      Flutter mobile app
+nginx/            Reverse proxy configs (production)
+tools/            QR code generator for device keys
+```
 
 ## Quick Start
 
-### 1. Configure Environment
+### 1. Backend (Docker)
 ```bash
-cp .env.example .env
-# Edit .env with your database URL and MQTT settings
-```
-
-### 2. Start Docker
-```bash
+# Configure backend/.env (see backend/.env for required variables)
 docker compose up -d --build
 ```
 
-### 3. Check Services
+### 2. Verify
 ```bash
-docker compose logs -f backend      # Backend logs
-docker compose ps                    # Service status
+docker compose ps                    # All 3 services running
+curl http://localhost:3000/health     # {"status":"healthy","database":"connected"}
 ```
 
-## Access Points
-
-- **API**: `http://localhost:3000`
-- **EMQX Dashboard**: `http://localhost:18083` (admin/public)
-- **Health Check**: `GET http://localhost:3000/health`
-
-## REST API Endpoints
-
+### 3. Flutter App
+```bash
+cd smart_potsy
+flutter pub get
+flutter run
 ```
-GET  /health                                     → Service health
-GET  /api/devices?limit=100                      → List all devices
-GET  /api/devices/:deviceId/telemetry?limit=100 → Device telemetry history
-GET  /api/devices/:deviceId/status               → Latest device status
+
+## Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Backend API | 3000 | REST API + MQTT subscriber |
+| PostgreSQL | 5432 | Data storage |
+| EMQX | 1883 / 18083 | MQTT broker / Dashboard (admin/public) |
+
+## API Endpoints
+
+### Auth (public)
+```
+POST /api/auth/register          Register new user
+POST /api/auth/login             Login (returns JWT)
+POST /api/auth/oauth             OAuth login
+POST /api/auth/forgot-password   Request password reset email
+POST /api/auth/reset-password    Reset password with token
+```
+
+### Auth (requires JWT)
+```
+POST /api/auth/change-password   Change password
+GET  /api/auth/me                Current user info
+```
+
+### Devices (requires JWT)
+```
+GET    /api/devices                          List user's devices
+POST   /api/devices                          Register device with key (or QR scan)
+DELETE /api/devices/:deviceId                Remove device
+GET    /api/devices/:deviceId/telemetry      Telemetry history (?hours=24)
+GET    /api/devices/:deviceId/status         Latest status
+GET    /api/devices/:deviceId/alert-rules    Get alert thresholds
+POST   /api/devices/:deviceId/alert-rules    Set alert thresholds
+```
+
+### Admin (requires ADMIN_API_KEY header)
+```
+POST /api/admin/devices/generate    Generate device keys (count, prefix)
 ```
 
 ## MQTT Topics
 
-- `greenhouse/{deviceId}/telemetry` - Sensor data
-- `greenhouse/{deviceId}/status` - Device online/offline
+- `greenhouse/{deviceKey}/telemetry` — Sensor data every 60 seconds
+- `greenhouse/{deviceKey}/status` — Online/offline (LWT)
+
+Only registered device keys are accepted; unknown devices are rejected.
+
+## Telemetry Format
+
+```json
+{
+  "deviceId": "GH-XXXX-XXXX",
+  "airTemperature": 25.5,
+  "airHumidity": 65,
+  "soilTemperature": 23.0,
+  "soilMoisture": 45,
+  "lightLevel": 78
+}
+```
+
+All values are numeric. Light level is a percentage (0–100%).
 
 ## ESP32 Setup
 
 Edit `firmware/esp32_greenhouse.ino`:
 ```cpp
-const char *WIFI_SSID = "YOUR_SSID";
-const char *WIFI_PASSWORD = "YOUR_PASSWORD";
-const char *MQTT_BROKER = "192.168.x.x"; // Your EMQX IP
-const char *DEVICE_ID = "ESP32_001";
+const char *WIFI_SSID = "Your-WiFi";
+const char *WIFI_PASSWORD = "Your-Password";
+const char *MQTT_BROKER = "your-server-ip";
 ```
 
-Upload to ESP32 using Arduino IDE.
+Flash the device key (generated via admin endpoint) before first use. Upload using Arduino IDE (Board: ESP32 Dev Module).
 
-## Stop Services
-```bash
-docker compose down
-```
+## Device Registration Flow
 
-## Data Format
+1. Admin generates device keys via API
+2. Key is flashed to ESP32 firmware
+3. User scans QR code or enters key manually in the app
+4. ESP32 connects to MQTT and starts sending telemetry
 
-Telemetry JSON sent every 60 seconds:
-```json
-{
-  "deviceId": "ESP32_001",
-  "airTemperature": 25.5,
-  "airHumidity": 65,
-  "soilTemperature": 23.0,
-  "soilMoisture": 45,
-  "lightLevel": 750
-}
-```
-
-Backend adds `recordedAt` timestamp when storing to database.
-```bash
-mosquitto_pub -h localhost -t greenhouse/ESP32_001/status -m "online"
-mosquitto_pub -h localhost -t greenhouse/ESP32_001/telemetry -m '{"deviceId":"ESP32_001","airTemperature":24.2,"airHumidity":64,"soilTemperature":22.7,"soilMoisture":42,"lightLevel":710}'
-```
-
-## Firmware
-- Example sketch: `firmware/esp32_greenhouse.ino`
-- Uses `WiFi.h` and `PubSubClient`. Publishes telemetry every 60s and sets LWT `offline` status.
-- Update `WIFI_SSID`, `WIFI_PASSWORD`, `MQTT_BROKER`, and optional MQTT credentials in the sketch before flashing.
-
-## Backend development (without Docker)
+## Backend Development (without Docker)
 ```bash
 cd backend
-cp ../.env.example .env   # or create your own
 npm install
-npm run dev               # runs ts-node-dev with auto-reload
+npm run dev     # ts-node-dev with auto-reload
 ```
-Ensure Postgres and EMQX are reachable per your `.env`.
+Requires PostgreSQL and EMQX accessible per `backend/.env`.
 
-## Database schema
-- `telemetry`: time-series data with `device_id`, temps, humidity/moisture (%), light level, `recorded_at` (server timestamp). Indexed on `(device_id, recorded_at DESC)`.
-- `device_status`: latest status per device with `reported_at` timestamp (upserts on each status message).
-
-## Scaling & operations
-- Built/tested for ~50 devices; tuned with pooled DB connections and indexed queries. Supports hundreds of devices by increasing EMQX and Postgres resources; adjust `Pool` size in `backend/src/db.ts` if needed.
-- Enable MQTT authentication for production (set `EMQX_ALLOW_ANONYMOUS=false` and configure users in EMQX, then set `MQTT_USERNAME`/`MQTT_PASSWORD` in the backend env).
-- Health endpoint (`/health`) suitable for container probes; add Docker healthchecks as desired.
-- Logs are structured (pino) and output to stdout for container collection.
-
-## Useful commands
-- `docker compose down -v` → stop and remove local volumes.
-- `docker compose exec db psql -U greenhouse -d greenhouse` → inspect data.
-- `docker compose logs -f emqx` → broker logs.
+## Docker Commands
+```bash
+docker compose up -d --build         # Start all
+docker compose logs -f backend       # Backend logs
+docker compose ps                    # Service status
+docker compose down                  # Stop all
+```

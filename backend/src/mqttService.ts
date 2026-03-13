@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { Logger } from "pino";
 import { z } from "zod";
 import { config } from "./config";
-import { createDeviceForUser, verifyDeviceExists } from "./db";
+import { verifyDeviceExists } from "./db";
 
 const telemetrySchema = z.object({
   deviceId: z.string().regex(/^(ESP32_\d{3}|GH-[A-Z0-9]{4}-[A-Z0-9]{4})$/),
@@ -61,10 +61,28 @@ const handleTelemetry = async (pool: Pool, logger: Logger, deviceId: string, pay
   const recordedAt = new Date().toISOString();
 
   try {
-    // Verify device exists or create it for system user
+    // Only process telemetry for devices already provisioned in DB
     const exists = await verifyDeviceExists(deviceId);
     if (!exists) {
-      await createDeviceForUser(deviceId, 1, telemetry.deviceKey); // System user with optional key
+      // If device has a key, check by key (new-format devices use key as device_id)
+      if (telemetry.deviceKey) {
+        const keyResult = await pool.query(
+          "SELECT device_id FROM devices WHERE device_key = $1",
+          [telemetry.deviceKey]
+        );
+        if (keyResult.rows.length === 0) {
+          logger.warn({ deviceId }, "Ignoring telemetry from unknown device — provision it first via admin endpoint");
+          return;
+        }
+        // Update device_id to match what the firmware is advertising
+        await pool.query(
+          "UPDATE devices SET device_id = $1 WHERE device_key = $2 AND device_id != $1",
+          [deviceId, telemetry.deviceKey]
+        );
+      } else {
+        logger.warn({ deviceId }, "Ignoring telemetry from unknown device — provision it first via admin endpoint");
+        return;
+      }
     } else if (telemetry.deviceKey) {
       // Update device_key if not set
       await pool.query(
@@ -114,10 +132,11 @@ const handleStatus = async (pool: Pool, logger: Logger, deviceId: string, payloa
 
   const reportedAt = new Date().toISOString();
   try {
-    // Verify device exists or create it for system user
+    // Only process status for devices already provisioned in DB
     const exists = await verifyDeviceExists(deviceId);
     if (!exists) {
-      await createDeviceForUser(deviceId, 1); // System user
+      logger.warn({ deviceId }, "Ignoring status from unknown device — provision it first via admin endpoint");
+      return;
     }
 
     await pool.query(

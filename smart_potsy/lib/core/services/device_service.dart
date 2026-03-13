@@ -38,11 +38,6 @@ class DeviceService {
     return null;
   }
 
-  /// Generate a new device with auto-generated key
-  Future<Device?> generateNewDevice() async {
-    return registerDevice(null);
-  }
-
   Future<bool> removeDevice(String deviceId) async {
     final response = await _apiService.delete(
       ApiConstants.deleteDevice(deviceId),

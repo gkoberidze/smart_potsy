@@ -74,6 +74,17 @@ export const runMigrations = async (pool: Pool, logger: Logger) => {
     EXCEPTION WHEN OTHERS THEN NULL;
     END $$;
     `,
+    // Add device_key column and unique index for pre-provisioning support
+    `
+    DO $$ BEGIN
+      ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_key TEXT;
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END $$;
+    `,
+    `
+    CREATE UNIQUE INDEX IF NOT EXISTS devices_device_key_idx
+      ON devices (device_key) WHERE device_key IS NOT NULL;
+    `,
   ];
 
   for (const statement of statements) {

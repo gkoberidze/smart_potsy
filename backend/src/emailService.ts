@@ -78,18 +78,4 @@ export const sendPasswordResetEmail = async (
   }
 };
 
-export const verifyEmailConnection = async (): Promise<boolean> => {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    logger.warn("SMTP not configured - email sending disabled");
-    return false;
-  }
 
-  try {
-    await transporter.verify();
-    logger.info("SMTP connection verified");
-    return true;
-  } catch (err) {
-    logger.error({ err }, "SMTP connection failed");
-    return false;
-  }
-};

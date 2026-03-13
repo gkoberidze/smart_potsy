@@ -244,12 +244,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         _buildSensorRow(
           icon: _buildLightIcon(),
           value: latest?.lightLevel?.toStringAsFixed(0) ?? '--',
-          unit: 'lux',
-        ),
-        const SizedBox(height: 24),
-        _buildSensorRow(
-          icon: _buildBatteryIcon(),
-          value: '90', // TODO: Add battery level to telemetry
           unit: '%',
         ),
         if (latest?.recordedAt != null) ...[
@@ -271,7 +265,8 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   }
 
   String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    final gmt4 = dateTime.toUtc().add(const Duration(hours: 4));
+    return '${gmt4.year}-${gmt4.month.toString().padLeft(2, '0')}-${gmt4.day.toString().padLeft(2, '0')} ${gmt4.hour.toString().padLeft(2, '0')}:${gmt4.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildSensorRow({
@@ -346,13 +341,5 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
   Widget _buildLightIcon() {
     return const Icon(Icons.wb_sunny_outlined, size: 32, color: Colors.black54);
-  }
-
-  Widget _buildBatteryIcon() {
-    return const Icon(
-      Icons.battery_full_outlined,
-      size: 32,
-      color: Colors.black54,
-    );
   }
 }
