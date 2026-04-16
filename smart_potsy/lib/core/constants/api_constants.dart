@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 class ApiConstants {
   // ===========================================
   // BASE URL CONFIGURATION
@@ -5,17 +7,28 @@ class ApiConstants {
   // 🔧 DEVELOPMENT: Use one of these:
   //    - Web/Desktop: 'http://localhost:3000'
   //    - Android Emulator: 'http://10.0.2.2:3000'
-  //    - iOS Simulator: 'http://localhost:3000'
   //    - Physical Device: 'http://YOUR_PC_IP:3000'
   //
-  // 🚀 PRODUCTION: Change to your server domain:
-  //    - 'https://yourdomain.com'
+  // Use the app settings to change the backend URL for your phone.
   // ===========================================
 
-  // static const String baseUrl = 'http://localhost:3000'; // Chrome/Web (Development)
-  static const String baseUrl =
-      'http://161.35.219.50:3000'; // Production Server (nginx on port 80)
-  // static const String baseUrl = 'https://yourdomain.com'; // PRODUCTION (if you have SSL/domain)
+  static const String defaultBaseUrl = 'http://localhost:3000';
+  static const String _baseUrlPrefsKey = 'api_base_url';
+
+  static Future<String> getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_baseUrlPrefsKey) ?? defaultBaseUrl;
+  }
+
+  static Future<void> setBaseUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_baseUrlPrefsKey, url);
+  }
+
+  static Future<void> resetBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_baseUrlPrefsKey);
+  }
 
   // Auth endpoints
   static const String register = '/api/auth/register';

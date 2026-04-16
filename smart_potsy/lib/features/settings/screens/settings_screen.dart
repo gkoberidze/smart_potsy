@@ -18,11 +18,21 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String? _profileImagePath;
   bool _isLoading = false;
+  late final TextEditingController _serverUrlController;
+  String _serverUrl = ApiConstants.defaultBaseUrl;
 
   @override
   void initState() {
     super.initState();
+    _serverUrlController = TextEditingController();
     _loadProfileImage();
+    _loadServerUrl();
+  }
+
+  @override
+  void dispose() {
+    _serverUrlController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfileImage() async {
@@ -32,6 +42,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _profileImagePath = prefs.getString('profile_image_$userId');
     });
+  }
+
+  Future<void> _loadServerUrl() async {
+    final url = await ApiConstants.getBaseUrl();
+    _serverUrlController.text = url;
+    setState(() {
+      _serverUrl = url;
+    });
+  }
+
+  Future<void> _saveServerUrl() async {
+    final url = _serverUrlController.text.trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('გთხოვთ, მოძებნოთ სერვერის URL.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await ApiConstants.setBaseUrl(url);
+    setState(() {
+      _serverUrl = url;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('სერვერის URL შეინახა'),
+          backgroundColor: Color(0xFF2E7D32),
+        ),
+      );
+    }
+  }
+
+  Future<void> _resetServerUrl() async {
+    await ApiConstants.resetBaseUrl();
+    final url = await ApiConstants.getBaseUrl();
+    _serverUrlController.text = url;
+    setState(() {
+      _serverUrl = url;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('სერვერის URL დაფიქსირდა სტანდარტულ მნიშვნელობამდე'),
+          backgroundColor: Color(0xFF2E7D32),
+        ),
+      );
+    }
   }
 
   Future<void> _saveProfileImage(String path) async {
@@ -421,6 +483,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             enabled: false,
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'სერვერის კონფიგურაცია',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'თუ გსურთ აპი მუშაობდეს ადგილობრივ Docker გარემოში, ჩასვით აქ თქვენს კომპიუტერის IP-ა და პორტი, მაგალითად: http://192.168.1.100:3000',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _serverUrlController,
+                              decoration: const InputDecoration(
+                                labelText: 'ბაზის URL',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.url,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _saveServerUrl,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2E7D32),
+                                    ),
+                                    child: const Text('შენახვა'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton(
+                                  onPressed: _resetServerUrl,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey.shade600,
+                                  ),
+                                  child: const Text('იწყი ნაგულისხმევით'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'მიმდინარე სერვერი: $_serverUrl',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

@@ -16,8 +16,9 @@ class ApiService {
 
   Future<ApiResponse> post(String endpoint, Map<String, dynamic> body) async {
     try {
+      final baseUrl = await ApiConstants.getBaseUrl();
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+        Uri.parse('$baseUrl$endpoint'),
         headers: _headers,
         body: jsonEncode(body),
       );
@@ -29,8 +30,9 @@ class ApiService {
 
   Future<ApiResponse> get(String endpoint) async {
     try {
+      final baseUrl = await ApiConstants.getBaseUrl();
       final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+        Uri.parse('$baseUrl$endpoint'),
         headers: _headers,
       );
       return ApiResponse.fromResponse(response);
@@ -41,8 +43,9 @@ class ApiService {
 
   Future<ApiResponse> delete(String endpoint) async {
     try {
+      final baseUrl = await ApiConstants.getBaseUrl();
       final response = await http.delete(
-        Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+        Uri.parse('$baseUrl$endpoint'),
         headers: _headers,
       );
       return ApiResponse.fromResponse(response);
