@@ -85,6 +85,30 @@ export const runMigrations = async (pool: Pool, logger: Logger) => {
     CREATE UNIQUE INDEX IF NOT EXISTS devices_device_key_idx
       ON devices (device_key) WHERE device_key IS NOT NULL;
     `,
+
+    // ── Blockchain Oracle ─────────────────────────────────────────────────────
+    //
+    // Stores the Solana transaction receipt for every hourly anchor.
+    // Each row is the proof that a specific device's sensor averages
+    // existed at a given time — verified on Solana Devnet via explorer_url.
+    //
+    `
+    CREATE TABLE IF NOT EXISTS blockchain_anchors (
+      id           BIGSERIAL    PRIMARY KEY,
+      device_id    TEXT         NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+      window_start TIMESTAMPTZ  NOT NULL,
+      window_end   TIMESTAMPTZ  NOT NULL,
+      row_count    INTEGER      NOT NULL,
+      telemetry_hash TEXT       NOT NULL,
+      tx_signature TEXT         NOT NULL UNIQUE,
+      explorer_url TEXT         NOT NULL,
+      anchored_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    );
+    `,
+    `
+    CREATE INDEX IF NOT EXISTS anchors_device_time_idx
+      ON blockchain_anchors (device_id, anchored_at DESC);
+    `,
   ];
 
   for (const statement of statements) {

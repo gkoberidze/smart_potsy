@@ -4,7 +4,7 @@
 
 const char *WIFI_SSID = "Matrix Vision"; // WiFi სახელი
 const char *WIFI_PASSWORD = "14022007";  // WiFi პაროლი
-const char *MQTT_BROKER = "161.35.219.50";
+const char *MQTT_BROKER = "10.56.120.142";
 const uint16_t MQTT_PORT = 1883;
 const char *MQTT_USERNAME = "";          // არასავალდებულო
 const char *MQTT_PASSWORD = "";          // არასავალდებულო

@@ -4,6 +4,7 @@ import { createHttpServer } from "./httpServer";
 import { logger } from "./logger";
 import { runMigrations } from "./migrations";
 import { startMqttIngestion } from "./mqttService";
+import { startAnchorCron } from "./jobs/telemetryCron";  // ← NEW
 
 const start = async () => {
   logger.info("Starting greenhouse backend...");
@@ -20,6 +21,8 @@ const start = async () => {
 
   const mqttClient = startMqttIngestion(pool, logger);
   const app = createHttpServer(pool, logger);
+
+  startAnchorCron(pool, logger);  // ← NEW  (non-blocking, registers the cron)
 
   const server = app.listen(config.port, '0.0.0.0', () => {
     logger.info({ port: config.port, env: config.env }, "HTTP server listening");
