@@ -1,11 +1,11 @@
 #!/bin/bash
 # ===========================================
-# GREENHOUSE IOT - DATABASE BACKUP SCRIPT
+# SMART POTSY - DATABASE BACKUP SCRIPT
 # ===========================================
 
 BACKUP_DIR="./backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/greenhouse_backup_$DATE.sql"
+BACKUP_FILE="$BACKUP_DIR/smart_potsy_backup_$DATE.sql"
 
 echo "🗄️ Creating database backup..."
 
@@ -13,7 +13,7 @@ echo "🗄️ Creating database backup..."
 mkdir -p $BACKUP_DIR
 
 # Create backup using docker
-docker exec greenhouse-iot-db-1 pg_dump -U greenhouse greenhouse > $BACKUP_FILE
+docker exec smart_potsy-db-1 pg_dump -U smart_potsy smart_potsy > $BACKUP_FILE
 
 if [ $? -eq 0 ]; then
     # Compress backup

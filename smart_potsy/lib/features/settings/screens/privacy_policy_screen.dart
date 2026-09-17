@@ -27,7 +27,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSection(
               'Introduction',
-              '''Greenhouse IoT Application ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
+              '''Smart Potsy ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
 
 Please read this Privacy Policy carefully. If you do not agree with our policies and practices, please do not use our application.''',
             ),
@@ -113,7 +113,7 @@ These services have their own privacy policies. We recommend reviewing their pol
 - Opt-out of marketing communications
 - Request a copy of your data in portable format
 
-To exercise these rights, please contact us at privacy@greenhouse-iot.com'''),
+To exercise these rights, please contact us at privacy@smartpotsy.local'''),
             _buildSection(
               'Children\'s Privacy',
               '''Our application is not intended for users under 13 years of age. We do not knowingly collect information from children under 13. If we become aware that we have collected information from a child under 13, we will take steps to delete such information immediately.''',
@@ -128,8 +128,8 @@ Your continued use of the application following the posting of changes constitut
               'Contact Us',
               '''If you have any questions about this Privacy Policy or our privacy practices, please contact us at:
 
-Email: privacy@greenhouse-iot.com
-Support: support@greenhouse-iot.com
+Email: privacy@smartpotsy.local
+Support: support@smartpotsy.local
 
 We will respond to your inquiries within 30 days.''',
             ),

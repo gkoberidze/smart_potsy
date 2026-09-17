@@ -24,7 +24,7 @@ export const config = {
     url: readEnv("MQTT_URL", "mqtt://localhost:1883"),
     username: process.env.MQTT_USERNAME,
     password: process.env.MQTT_PASSWORD,
-    clientId: `greenhouse-backend-${Math.random()
+    clientId: `smart-potsy-backend-${Math.random()
       .toString(16)
       .slice(2, 8)}`,
   },

@@ -25,7 +25,7 @@ const DEVICE_ID_REGEX = /^(ESP32_\d{3}|GH-[A-Z0-9]{4}-[A-Z0-9]{4})$/;
 
 const parseTopic = (topic: string): { deviceId: string; kind: TopicKind } | null => {
   const parts = topic.split("/");
-  if (parts.length !== 3 || parts[0] !== "greenhouse") {
+  if (parts.length !== 3 || parts[0] !== "smart-potsy") {
     return null;
   }
   const [_, deviceId, kind] = parts;
@@ -168,7 +168,7 @@ export const startMqttIngestion = (pool: Pool, logger: Logger): MqttClient => {
 
   client.on("connect", () => {
     logger.info({ url: config.mqtt.url }, "Connected to MQTT broker");
-    client.subscribe(["greenhouse/+/telemetry", "greenhouse/+/status"], (err) => {
+    client.subscribe(["smart-potsy/+/telemetry", "smart-potsy/+/status"], (err) => {
       if (err) {
         logger.error({ err }, "Failed to subscribe to MQTT topics");
       } else {

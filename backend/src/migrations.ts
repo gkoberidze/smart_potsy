@@ -23,7 +23,7 @@ export const runMigrations = async (pool: Pool, logger: Logger) => {
     `,
     `
     INSERT INTO users (id, email, password_hash)
-    VALUES (1, 'system@greenhouse.local', 'SYSTEM_USER_NO_LOGIN')
+    VALUES (1, 'system@smartpotsy.local', 'SYSTEM_USER_NO_LOGIN')
     ON CONFLICT (id) DO NOTHING;
     `,
     `

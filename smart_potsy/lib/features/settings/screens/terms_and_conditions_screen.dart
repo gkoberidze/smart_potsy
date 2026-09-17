@@ -27,7 +27,7 @@ class TermsAndConditionsScreen extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSection(
               'Introduction',
-              '''Welcome to Greenhouse IoT Application. These Terms and Conditions govern your use of our mobile application and services. By accessing and using this application, you accept and agree to be bound by the terms and provision of this agreement.
+              '''Welcome to Smart Potsy. These Terms and Conditions govern your use of our mobile application and services. By accessing and using this application, you accept and agree to be bound by the terms and provision of this agreement.
 
 If you do not agree to abide by the above, please do not use this service.''',
             ),
@@ -61,7 +61,7 @@ We provide the application on an "as-is" basis without warranties of any kind.''
             ),
             _buildSection(
               'Contact Us',
-              '''If you have any questions about these Terms and Conditions, please contact us at support@greenhouse-iot.com''',
+              '''If you have any questions about these Terms and Conditions, please contact us at support@smartpotsy.local''',
             ),
             const SizedBox(height: 24),
           ],

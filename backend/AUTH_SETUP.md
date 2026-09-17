@@ -148,7 +148,7 @@ BCRYPT_ROUNDS=10
 
 1. **Create system user** (id=1):
    ```sql
-   INSERT INTO users (email, password_hash) VALUES ('system@greenhouse.local', '$2b$10$...');
+  INSERT INTO users (email, password_hash) VALUES ('system@smartpotsy.local', '$2b$10$...');
    ```
 
 2. **Assign devices to users** - Add endpoint to transfer device ownership:

@@ -1,4 +1,4 @@
-# Smart Potsy - IoT Greenhouse Monitoring
+# Smart Potsy - Smart Plant Monitoring
 
 Smart plant monitoring system: ESP32 sensors → MQTT → Node.js backend → PostgreSQL, with a Flutter mobile app. The current stack has no blockchain or Solana dependency.
 
@@ -84,8 +84,8 @@ POST /api/admin/devices/generate    Generate device keys (count)
 
 ## MQTT Topics
 
-- `greenhouse/{deviceId}/telemetry` — Sensor data every 60 seconds
-- `greenhouse/{deviceId}/status` — Online/offline (LWT)
+- `smart-potsy/{deviceId}/telemetry` — Sensor data every 60 seconds
+- `smart-potsy/{deviceId}/status` — Online/offline (LWT)
 
 Only registered device keys are accepted; unknown devices are rejected.
 
@@ -107,11 +107,10 @@ All values are numeric. Air humidity and soil moisture are percentages (0–100%
 
 ## ESP32 Setup
 
-Edit `firmware/esp32_greenhouse.ino`:
+Copy `firmware/credentials.h.example` to `firmware/credentials.h`, fill in the local Wi-Fi, MQTT, device ID, and device key values, then flash `firmware/smart_potsy_esp32.ino`:
 ```cpp
-const char *WIFI_SSID = "Your-WiFi";
-const char *WIFI_PASSWORD = "Your-Password";
-const char *MQTT_BROKER = "your-server-ip";
+const char *DEVICE_ID = "ESP32_003";
+const char *DEVICE_KEY = "GH-XXXX-XXXX";
 ```
 
 Flash the device ID and device key before first use. The MQTT broker address must be reachable from the ESP32; `localhost` refers to the ESP32 itself, not the Docker host. Upload using Arduino IDE (Board: ESP32 Dev Module).

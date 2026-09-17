@@ -1,15 +1,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <Preferences.h>
-
-const char *WIFI_SSID = "Matrix Vision"; // WiFi სახელი
-const char *WIFI_PASSWORD = "14022007";  // WiFi პაროლი
-const char *MQTT_BROKER = "10.56.120.142";
-const uint16_t MQTT_PORT = 1883;
-const char *MQTT_USERNAME = "";          // არასავალდებულო
-const char *MQTT_PASSWORD = "";          // არასავალდებულო
-const char *DEVICE_ID = "ESP32_001";     // <-- Device identifier (visible in app)
-const char *DEVICE_KEY = "GH-4K7N-WF48"; // <-- Secret key for registration (QR/manual entry)
+#include "credentials.h"
 
 Preferences preferences;
 WiFiClient wifiClient;
@@ -17,8 +9,8 @@ PubSubClient mqttClient(wifiClient);
 const unsigned long TELEMETRY_INTERVAL_MS = 60UL * 1000UL; // 1 წუთი
 unsigned long lastTelemetryMs = 0;
 
-String telemetryTopic() { return String("greenhouse/") + DEVICE_ID + "/telemetry"; }
-String statusTopic() { return String("greenhouse/") + DEVICE_ID + "/status"; }
+String telemetryTopic() { return String("smart-potsy/") + DEVICE_ID + "/telemetry"; }
+String statusTopic() { return String("smart-potsy/") + DEVICE_ID + "/status"; }
 
 void connectWiFi()
 {
@@ -79,7 +71,7 @@ void connectMqtt()
 
   lastMqttRetry = now;
 
-  String clientId = String("greenhouse-") + DEVICE_KEY;
+  String clientId = String("smart-potsy-") + DEVICE_KEY;
   Serial.printf("🔌 Connecting to MQTT %s:%u as %s (attempt %u)...\n", MQTT_BROKER, MQTT_PORT, clientId.c_str(), mqttRetryCount + 1);
 
   bool connected = mqttClient.connect(
@@ -141,7 +133,7 @@ void printDeviceInfo()
 {
   Serial.println();
   Serial.println("╔════════════════════════════════════════════════════╗");
-  Serial.println("║       🌱 GREENHOUSE IoT DEVICE 🌱                  ║");
+  Serial.println("║          🌱 SMART POTSY DEVICE 🌱                  ║");
   Serial.println("╠════════════════════════════════════════════════════╣");
   Serial.printf("║  Device ID:  %-37s ║\n", DEVICE_ID);
   Serial.printf("║  Device Key: %-37s ║\n", DEVICE_KEY);
@@ -164,7 +156,7 @@ void setup()
   {
     Serial.println("⚠️  WARNING: Device key not configured!");
     Serial.println("⚠️  Please set DEVICE_KEY in the code.");
-    Serial.println("⚠️  Generate key in Greenhouse app first.");
+    Serial.println("⚠️  Generate key in Smart Potsy app first.");
     Serial.println();
   }
 

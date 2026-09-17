@@ -6,7 +6,7 @@ import { runMigrations } from "./migrations";
 import { startMqttIngestion } from "./mqttService";
 
 const start = async () => {
-  logger.info("Starting greenhouse backend...");
+  logger.info("Starting Smart Potsy backend...");
   
   try {
     await pool.query("SELECT 1");

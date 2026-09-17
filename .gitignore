@@ -11,3 +11,4 @@ coverage
 tmp
 *.log
 .env
+firmware/credentials.h

@@ -11,8 +11,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM_EMAIL = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@greenhouse.local";
-const APP_NAME = "Greenhouse IoT";
+const FROM_EMAIL = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@smartpotsy.local";
+const APP_NAME = "Smart Potsy";
 
 export const sendPasswordResetEmail = async (
   to: string,
@@ -27,7 +27,7 @@ export const sendPasswordResetEmail = async (
     await transporter.sendMail({
       from: `"${APP_NAME}" <${FROM_EMAIL}>`,
       to,
-      subject: "პაროლის აღდგენის კოდი - Greenhouse IoT",
+      subject: "პაროლის აღდგენის კოდი - Smart Potsy",
       text: `
 გამარჯობა,
 

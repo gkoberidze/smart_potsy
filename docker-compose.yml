@@ -18,9 +18,9 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: greenhouse
-      POSTGRES_PASSWORD: greenhouse
-      POSTGRES_DB: greenhouse
+      POSTGRES_USER: smart_potsy
+      POSTGRES_PASSWORD: smart_potsy
+      POSTGRES_DB: smart_potsy
     ports:
       - "5432:5432"
     volumes:

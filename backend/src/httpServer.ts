@@ -164,7 +164,7 @@ export const createHttpServer = (pool: Pool, logger: Logger) => {
   };
 
   app.get("/", (_req, res) => {
-    res.json(successResponse({ name: "Greenhouse IoT API", version: "0.1.0", status: "running" }));
+    res.json(successResponse({ name: "Smart Potsy API", version: "0.1.0", status: "running" }));
   });
 
   app.get("/health", async (_req, res) => {

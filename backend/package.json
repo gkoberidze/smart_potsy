@@ -1,7 +1,7 @@
 {
-  "name": "greenhouse-backend",
+  "name": "smart-potsy-backend",
   "version": "0.1.0",
-  "description": "Node.js backend for greenhouse IoT telemetry via MQTT (EMQX) into PostgreSQL",
+  "description": "Node.js backend for Smart Potsy telemetry via MQTT (EMQX) into PostgreSQL",
   "main": "dist/index.js",
   "type": "commonjs",
   "scripts": {
@@ -14,7 +14,7 @@
     "mqtt",
     "emqx",
     "postgres",
-    "greenhouse"
+    "smart-potsy"
   ],
   "author": "",
   "license": "MIT",
