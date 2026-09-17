@@ -49,12 +49,14 @@ const parseStatusPayload = (payload: string) => {
 
 const handleTelemetry = async (pool: Pool, logger: Logger, deviceId: string, payload: Buffer) => {
   let telemetry;
+  const rawPayload = payload.toString("utf8");
+
   try {
-    const parsed = JSON.parse(payload.toString());
+    const parsed = JSON.parse(rawPayload.trim());
     telemetry = telemetrySchema.parse(parsed);
     if (telemetry.deviceId !== deviceId) return;
   } catch (err) {
-    logger.warn({ err, deviceId }, "Telemetry payload rejected");
+    logger.warn({ err, deviceId, rawPayload }, "Telemetry payload rejected");
     return;
   }
 

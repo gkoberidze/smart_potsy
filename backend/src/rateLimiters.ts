@@ -1,8 +1,7 @@
 import rateLimit from "express-rate-limit";
-import { Request, Response } from "express";
 
 // Custom handler to return JSON
-const jsonHandler = (message: string) => (req: Request, res: Response) => {
+const jsonHandler = (message: string) => (req: any, res: any) => {
   res.status(429).json({ success: false, error: message });
 };
 
