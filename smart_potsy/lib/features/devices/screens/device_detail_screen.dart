@@ -170,7 +170,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _infoRow('ID:', widget.device.deviceId),
-                _infoRow('სტატუსი:', isOnline ? 'ონლაინ ✅' : 'ოფლაინ ❌'),
+                _infoRow('სტატუსი:', isOnline ? 'online ✅' : 'offline ❌'),
                 if (lastUpdate != null)
                   _infoRow('ბოლო განახლება:', _formatDateTime(lastUpdate)),
               ],

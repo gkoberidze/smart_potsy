@@ -41,8 +41,8 @@ class AppStrings {
   static const String removeDevice = 'მოწყობილობის წაშლა';
   static const String deviceDetails = 'მოწყობილობის დეტალები';
   static const String lastUpdate = 'ბოლო განახლება';
-  static const String online = 'ონლაინ';
-  static const String offline = 'ოფლაინ';
+  static const String online = 'online';
+  static const String offline = 'offline';
 
   // Telemetry
   static const String telemetry = 'სენსორების მონაცემები';

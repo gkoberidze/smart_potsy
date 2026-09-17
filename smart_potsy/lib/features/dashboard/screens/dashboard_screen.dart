@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/device_service.dart';
@@ -26,17 +27,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Device> _devices = [];
   bool _isLoading = true;
   Timer? _refreshTimer;
+  String _language = 'ka';
 
   @override
   void initState() {
     super.initState();
     _deviceService = DeviceService(context.read<ApiService>());
+    _loadLanguage();
     _loadDevices();
     // Auto-refresh every 10 seconds for real-time updates
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 10),
       (_) => _silentRefresh(),
     );
+  }
+
+  Future<void> _loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _language = prefs.getString('app_language') ?? 'ka';
+    });
+  }
+
+  Future<void> _saveLanguage(String language) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_language', language);
+    setState(() {
+      _language = language;
+    });
+  }
+
+  String _t(String georgian, String english) {
+    return _language == 'en' ? english : georgian;
+  }
+
+  Future<void> _changeLanguage(String language) async {
+    await _saveLanguage(language);
   }
 
   @override
@@ -103,10 +129,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(width: 16),
           // Title
-          const Expanded(
+          Expanded(
             child: Text(
-              'მოწყობილობები',
-              style: TextStyle(
+              _t('მოწყობილობები', 'Devices'),
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -124,6 +150,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               child: const Icon(Icons.refresh, color: Colors.black87, size: 24),
             ),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black87, size: 24),
+            onSelected: _changeLanguage,
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem<String>(
+                    value: 'ka',
+                    child: Text('ქართული'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'en',
+                    child: Text('English'),
+                  ),
+                ],
           ),
         ],
       ),
@@ -213,12 +255,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   _buildDrawerItem(
                     icon: Icons.home,
-                    title: 'მთავარი',
+                    title: _t('მთავარი', 'Home'),
                     onTap: () => Navigator.pop(context),
                   ),
                   _buildDrawerItem(
                     icon: Icons.devices,
-                    title: 'ჩემი მოწყობილობები',
+                    title: _t('ჩემი მოწყობილობები', 'My Devices'),
                     onTap: () {
                       Navigator.pop(context);
                       // Already on dashboard with devices
@@ -226,19 +268,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   _buildDrawerItem(
                     icon: Icons.lightbulb,
-                    title: 'რეკომენდაციები',
+                    title: _t('რეკომენდაციები', 'Recommendations'),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const RecommendationsScreen(),
+                          builder:
+                              (_) => RecommendationsScreen(language: _language),
                         ),
                       );
                     },
                   ),
                   _buildDrawerItem(
                     icon: Icons.settings,
-                    title: 'პარამეტრები',
+                    title: _t('პარამეტრები', 'Settings'),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.of(context).push(
@@ -281,7 +324,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Divider(height: 1),
             _buildDrawerItem(
               icon: Icons.logout,
-              title: 'გამოსვლა',
+              title: _t('გამოსვლა', 'Logout'),
               color: Colors.red,
               onTap: _logout,
             ),
@@ -351,18 +394,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'მოწყობილობა არ არის',
-              style: TextStyle(
+            Text(
+              _t('მოწყობილობა არ არის', 'No devices'),
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'მოწყობილობის დამატება:',
-              style: TextStyle(
+            Text(
+              _t('მოწყობილობის დამატება:', 'Add a device:'),
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: Colors.black54,
@@ -373,7 +416,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ElevatedButton.icon(
               onPressed: _scanQrCode,
               icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('QR კოდის სკანირება'),
+              label: Text(_t('QR კოდის სკანირება', 'Scan QR code')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E7D32),
                 foregroundColor: Colors.white,
@@ -391,9 +434,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             TextButton.icon(
               onPressed: _showManualEntryDialog,
               icon: const Icon(Icons.keyboard, color: Color(0xFF2E7D32)),
-              label: const Text(
-                'შეიყვანე ხელით კოდი',
-                style: TextStyle(color: Color(0xFF2E7D32)),
+              label: Text(
+                _t('შეიყვანე ხელით კოდი', 'Enter code manually'),
+                style: const TextStyle(color: Color(0xFF2E7D32)),
               ),
             ),
           ],
@@ -699,7 +742,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                isOnline ? 'ონლაინ' : 'ოფლაინ',
+                                _language == 'en'
+                                    ? (isOnline ? 'online' : 'offline')
+                                    : (isOnline ? 'ონლაინ' : 'ოფლაინ'),
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: isOnline ? Colors.green : Colors.grey,

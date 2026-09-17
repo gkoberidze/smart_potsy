@@ -18,89 +18,52 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String? _profileImagePath;
   bool _isLoading = false;
-  late final TextEditingController _serverUrlController;
-  String _serverUrl = ApiConstants.defaultBaseUrl;
+  String _language = 'ka';
 
   @override
   void initState() {
     super.initState();
-    _serverUrlController = TextEditingController();
     _loadProfileImage();
-    _loadServerUrl();
+    _loadLanguage();
   }
 
-  @override
-  void dispose() {
-    _serverUrlController.dispose();
-    super.dispose();
+  Future<void> _loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _language = prefs.getString('app_language') ?? 'ka';
+    });
+  }
+
+  Future<void> _saveLanguage(String language) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_language', language);
+    if (!mounted) return;
+    setState(() {
+      _language = language;
+    });
+  }
+
+  String _t(String georgian, String english) {
+    return _language == 'en' ? english : georgian;
   }
 
   Future<void> _loadProfileImage() async {
-    final prefs = await SharedPreferences.getInstance();
     final authService = context.read<AuthService>();
+    final prefs = await SharedPreferences.getInstance();
     final userId = authService.user?.id ?? 0;
+    if (!mounted) return;
     setState(() {
       _profileImagePath = prefs.getString('profile_image_$userId');
     });
   }
 
-  Future<void> _loadServerUrl() async {
-    final url = await ApiConstants.getBaseUrl();
-    _serverUrlController.text = url;
-    setState(() {
-      _serverUrl = url;
-    });
-  }
-
-  Future<void> _saveServerUrl() async {
-    final url = _serverUrlController.text.trim();
-    if (url.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('გთხოვთ, მოძებნოთ სერვერის URL.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    await ApiConstants.setBaseUrl(url);
-    setState(() {
-      _serverUrl = url;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('სერვერის URL შეინახა'),
-          backgroundColor: Color(0xFF2E7D32),
-        ),
-      );
-    }
-  }
-
-  Future<void> _resetServerUrl() async {
-    await ApiConstants.resetBaseUrl();
-    final url = await ApiConstants.getBaseUrl();
-    _serverUrlController.text = url;
-    setState(() {
-      _serverUrl = url;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('სერვერის URL დაფიქსირდა სტანდარტულ მნიშვნელობამდე'),
-          backgroundColor: Color(0xFF2E7D32),
-        ),
-      );
-    }
-  }
-
   Future<void> _saveProfileImage(String path) async {
-    final prefs = await SharedPreferences.getInstance();
     final authService = context.read<AuthService>();
+    final prefs = await SharedPreferences.getInstance();
     final userId = authService.user?.id ?? 0;
     await prefs.setString('profile_image_$userId', path);
+    if (!mounted) return;
     setState(() {
       _profileImagePath = path;
     });
@@ -108,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
+    final image = await picker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 512,
       maxHeight: 512,
@@ -119,8 +82,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _saveProfileImage(image.path);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ფოტო წარმატებით შეიცვალა'),
+          SnackBar(
+            content: Text(
+              _t('ფოტო წარმატებით შეიცვალა', 'Photo updated successfully'),
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -143,7 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           (context) => StatefulBuilder(
             builder:
                 (context, setDialogState) => AlertDialog(
-                  title: const Text('პაროლის შეცვლა'),
+                  title: Text(_t('პაროლის შეცვლა', 'Change password')),
                   content: Form(
                     key: formKey,
                     child: SingleChildScrollView(
@@ -154,7 +119,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             controller: currentPasswordController,
                             obscureText: obscureCurrent,
                             decoration: InputDecoration(
-                              labelText: 'მიმდინარე პაროლი',
+                              labelText: _t(
+                                'მიმდინარე პაროლი',
+                                'Current password',
+                              ),
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(
@@ -171,7 +139,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'შეიყვანეთ მიმდინარე პაროლი';
+                                return _t(
+                                  'შეიყვანეთ მიმდინარე პაროლი',
+                                  'Please enter your current password',
+                                );
                               }
                               return null;
                             },
@@ -181,7 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             controller: newPasswordController,
                             obscureText: obscureNew,
                             decoration: InputDecoration(
-                              labelText: 'ახალი პაროლი',
+                              labelText: _t('ახალი პაროლი', 'New password'),
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
                                 icon: Icon(
@@ -198,24 +169,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'შეიყვანეთ ახალი პაროლი';
+                                return _t(
+                                  'შეიყვანეთ ახალი პაროლი',
+                                  'Please enter a new password',
+                                );
                               }
                               if (value.length < 8) {
-                                return 'მინიმუმ 8 სიმბოლო';
+                                return _t(
+                                  'მინიმუმ 8 სიმბოლო',
+                                  'At least 8 characters',
+                                );
                               }
                               if (!RegExp(r'[A-Z]').hasMatch(value)) {
-                                return 'მინიმუმ ერთი დიდი ასო';
+                                return _t(
+                                  'მინიმუმ ერთი დიდი ასო',
+                                  'At least one uppercase letter',
+                                );
                               }
                               if (!RegExp(r'[a-z]').hasMatch(value)) {
-                                return 'მინიმუმ ერთი პატარა ასო';
+                                return _t(
+                                  'მინიმუმ ერთი პატარა ასო',
+                                  'At least one lowercase letter',
+                                );
                               }
                               if (!RegExp(r'[0-9]').hasMatch(value)) {
-                                return 'მინიმუმ ერთი ციფრი';
+                                return _t(
+                                  'მინიმუმ ერთი ციფრი',
+                                  'At least one number',
+                                );
                               }
                               if (!RegExp(
                                 r'[!@#$%^&*(),.?\":{}|<>]',
                               ).hasMatch(value)) {
-                                return 'მინიმუმ ერთი სპეც. სიმბოლო';
+                                return _t(
+                                  'მინიმუმ ერთი სპეც. სიმბოლო',
+                                  'At least one special character',
+                                );
                               }
                               return null;
                             },
@@ -225,7 +214,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             controller: confirmPasswordController,
                             obscureText: obscureConfirm,
                             decoration: InputDecoration(
-                              labelText: 'გაიმეორეთ ახალი პაროლი',
+                              labelText: _t(
+                                'გაიმეორეთ ახალი პაროლი',
+                                'Confirm new password',
+                              ),
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
                                 icon: Icon(
@@ -242,7 +234,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             validator: (value) {
                               if (value != newPasswordController.text) {
-                                return 'პაროლები არ ემთხვევა';
+                                return _t(
+                                  'პაროლები არ ემთხვევა',
+                                  'Passwords do not match',
+                                );
                               }
                               return null;
                             },
@@ -254,7 +249,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('გაუქმება'),
+                      child: Text(_t('გაუქმება', 'Cancel')),
                     ),
                     ElevatedButton(
                       onPressed: () async {
@@ -270,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         backgroundColor: const Color(0xFF2E7D32),
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('შეცვლა'),
+                      child: Text(_t('შეცვლა', 'Update')),
                     ),
                   ],
                 ),
@@ -294,15 +289,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         if (response.success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('პაროლი წარმატებით შეიცვალა'),
+            SnackBar(
+              content: Text(
+                _t(
+                  'პაროლი წარმატებით შეიცვალა',
+                  'Password changed successfully',
+                ),
+              ),
               backgroundColor: Colors.green,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response.error ?? 'პაროლის შეცვლა ვერ მოხერხდა'),
+              content: Text(
+                response.error ??
+                    _t('პაროლის შეცვლა ვერ მოხერხდა', 'Password change failed'),
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -311,7 +314,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('შეცდომა: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(_t('შეცდომა: ', 'Error: ') + e.toString()),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -333,9 +339,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('პარამეტრები'),
+        title: Text(_t('პარამეტრები', 'Settings')),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.language),
+            onSelected: _saveLanguage,
+            itemBuilder:
+                (context) => const [
+                  PopupMenuItem(value: 'ka', child: Text('ქართული')),
+                  PopupMenuItem(value: 'en', child: Text('English')),
+                ],
+          ),
+        ],
       ),
       body:
           _isLoading
@@ -354,9 +371,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           children: [
-                            const Text(
-                              'პროფილის ფოტო',
-                              style: TextStyle(
+                            Text(
+                              _t('პროფილის ფოტო', 'Profile photo'),
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -427,7 +444,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             TextButton.icon(
                               onPressed: _pickImage,
                               icon: const Icon(Icons.edit),
-                              label: const Text('ფოტოს შეცვლა'),
+                              label: Text(_t('ფოტოს შეცვლა', 'Change photo')),
                               style: TextButton.styleFrom(
                                 foregroundColor: const Color(0xFF2E7D32),
                               ),
@@ -447,11 +464,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.all(16),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
                             child: Text(
-                              'უსაფრთხოება',
-                              style: TextStyle(
+                              _t('უსაფრთხოება', 'Security'),
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -462,9 +479,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               backgroundColor: Color(0xFFE8F5E9),
                               child: Icon(Icons.lock, color: Color(0xFF2E7D32)),
                             ),
-                            title: const Text('პაროლის შეცვლა'),
-                            subtitle: const Text(
-                              'შეცვალეთ თქვენი ანგარიშის პაროლი',
+                            title: Text(
+                              _t('პაროლის შეცვლა', 'Change password'),
+                            ),
+                            subtitle: Text(
+                              _t(
+                                'შეცვალეთ თქვენი ანგარიშის პაროლი',
+                                'Update your account password',
+                              ),
                             ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: _showChangePasswordDialog,
@@ -478,80 +500,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 color: Color(0xFF2E7D32),
                               ),
                             ),
-                            title: const Text('ელ-ფოსტა'),
-                            subtitle: Text(user?.email ?? 'არ არის მითითებული'),
+                            title: Text(_t('ელ-ფოსტა', 'Email')),
+                            subtitle: Text(
+                              user?.email ??
+                                  _t('არ არის მითითებული', 'Not provided'),
+                            ),
                             enabled: false,
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'სერვერის კონფიგურაცია',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'თუ გსურთ აპი მუშაობდეს ადგილობრივ Docker გარემოში, ჩასვით აქ თქვენს კომპიუტერის IP-ა და პორტი, მაგალითად: http://192.168.1.100:3000',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _serverUrlController,
-                              decoration: const InputDecoration(
-                                labelText: 'ბაზის URL',
-                                border: OutlineInputBorder(),
-                              ),
-                              keyboardType: TextInputType.url,
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: _saveServerUrl,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF2E7D32),
-                                    ),
-                                    child: const Text('შენახვა'),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                ElevatedButton(
-                                  onPressed: _resetServerUrl,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey.shade600,
-                                  ),
-                                  child: const Text('იწყი ნაგულისხმევით'),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'მიმდინარე სერვერი: $_serverUrl',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
